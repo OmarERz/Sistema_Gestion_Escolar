@@ -230,14 +230,14 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Output:** Running `npm run dev` starts both frontend (`:5173`) and backend (`:3000`)
 
-### Step 2: Database Schema + Seed
+### Step 2: Database Schema + Seed ✅
 - Write complete Prisma schema (all 14 tables)
 - Run initial migration (`npx prisma migrate dev`)
 - Create seed script with:
   - Admin user (username: `admin`)
   - Default payment concepts: Inscripción, Colegiatura (monthly), Material, Seguro
   - Sample school cycle (2025-2026)
-  - Sample groups for the cycle
+  - Sample groups for the cycle (Kinder 1-3, Primaria 1-6, Secundaria 1-3 — sections A, B)
 
 **Output:** Database with all tables created and seed data inserted
 
@@ -375,7 +375,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 ```mermaid
 graph TD
-    S1[Step 1: Scaffolding ✅] --> S2[Step 2: DB Schema + Seed]
+    S1[Step 1: Scaffolding ✅] --> S2[Step 2: DB Schema + Seed ✅]
     S1 --> S3[Step 3: Backend Foundation]
     S1 --> S4[Step 4: Frontend Foundation]
 
@@ -418,7 +418,7 @@ graph TD
 | Step | Verification |
 |------|-------------|
 | 1 ✅ | `npm run dev` starts both servers without errors |
-| 2 | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
+| 2 ✅ | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
 | 3 | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
 | 4 | Login page works; authenticated users see sidebar layout; navigation routes render |
 | 5 | Create/edit/activate school cycles via UI |

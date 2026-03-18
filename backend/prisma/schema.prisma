@@ -7,7 +7,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Placeholder model for initial setup — full schema added in Step 2
+// ─── Enums ───────────────────────────────────────────────
+
+enum GroupLevel {
+  kinder
+  primaria
+  secundaria
+  prepa
+}
+
+enum StudentStatus {
+  active
+  inactive
+  withdrawn
+}
+
+enum AcademicStatus {
+  enrolled
+  promoted
+  withdrawn
+  repeated
+}
+
+enum PaymentConceptType {
+  mandatory
+  optional
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  partial
+  overdue
+  cancelled
+}
+
+// ─── Auth ────────────────────────────────────────────────
+
 model User {
   id           Int      @id @default(autoincrement())
   username     String   @unique @db.VarChar(50)
@@ -18,4 +54,260 @@ model User {
   updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+// ─── Core Tables ─────────────────────────────────────────
+
+model SchoolCycle {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  groups                Group[]
+  students              Student[]
+  academicHistories     StudentAcademicHistory[]
+  payments              Payment[]
+  recurringPaymentRules RecurringPaymentRule[]
+  withdrawals           Withdrawal[]
+
+  @@map("school_cycles")
+}
+
+model Group {
+  id             Int        @id @default(autoincrement())
+  name           String     @db.VarChar(50)
+  level          GroupLevel
+  grade          String     @db.VarChar(10)
+  section        String     @db.VarChar(10)
+  promotionOrder Int        @map("promotion_order")
+  schoolCycleId  Int        @map("school_cycle_id")
+  isActive       Boolean    @default(true) @map("is_active")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  schoolCycle       SchoolCycle              @relation(fields: [schoolCycleId], references: [id])
+  students          Student[]
+  academicHistories StudentAcademicHistory[]
+
+  @@unique([level, grade, section, schoolCycleId], name: "unique_group_per_cycle")
+  @@map("groups")
+}
+
+model Student {
+  id             Int           @id @default(autoincrement())
+  firstName      String        @map("first_name") @db.VarChar(100)
+  lastName1      String        @map("last_name_1") @db.VarChar(100)
+  lastName2      String?       @map("last_name_2") @db.VarChar(100)
+  dateOfBirth    DateTime      @map("date_of_birth") @db.Date
+  groupId        Int           @map("group_id")
+  schoolCycleId  Int           @map("school_cycle_id")
+  enrollmentDate DateTime      @map("enrollment_date") @db.Date
+  status         StudentStatus @default(active)
+  totalDebt      Decimal       @default(0.00) @map("total_debt") @db.Decimal(10, 2)
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  group             Group                    @relation(fields: [groupId], references: [id])
+  schoolCycle       SchoolCycle              @relation(fields: [schoolCycleId], references: [id])
+  guardians         StudentGuardian[]
+  academicHistories StudentAcademicHistory[]
+  payments          Payment[]
+  uniforms          Uniform[]
+  withdrawal        Withdrawal?
+
+  @@map("students")
+}
+
+model Guardian {
+  id             Int      @id @default(autoincrement())
+  firstName      String   @map("first_name") @db.VarChar(100)
+  lastName1      String   @map("last_name_1") @db.VarChar(100)
+  lastName2      String?  @map("last_name_2") @db.VarChar(100)
+  email          String?  @unique @db.VarChar(255)
+  phone          String   @unique @db.VarChar(20)
+  phoneSecondary String?  @map("phone_secondary") @db.VarChar(20)
+  address        String?  @db.Text
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  students   StudentGuardian[]
+  fiscalData FiscalData?
+
+  @@map("guardians")
+}
+
+model StudentGuardian {
+  id           Int     @id @default(autoincrement())
+  studentId    Int     @map("student_id")
+  guardianId   Int     @map("guardian_id")
+  relationship String  @db.VarChar(50)
+  isPrimary    Boolean @default(false) @map("is_primary")
+
+  student  Student  @relation(fields: [studentId], references: [id])
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@unique([studentId, guardianId], name: "unique_student_guardian")
+  @@map("student_guardian")
+}
+
+model FiscalData {
+  id                      Int      @id @default(autoincrement())
+  guardianId              Int      @unique @map("guardian_id")
+  rfc                     String   @db.VarChar(13)
+  businessName            String   @map("business_name") @db.VarChar(255)
+  cfdiUsage               String   @map("cfdi_usage") @db.VarChar(100)
+  fiscalRegime            String?  @map("fiscal_regime") @db.VarChar(100)
+  fiscalAddressStreet     String   @map("fiscal_address_street") @db.VarChar(255)
+  fiscalAddressExtNumber  String?  @map("fiscal_address_ext_number") @db.VarChar(20)
+  fiscalAddressIntNumber  String?  @map("fiscal_address_int_number") @db.VarChar(20)
+  fiscalAddressNeighborhood String? @map("fiscal_address_neighborhood") @db.VarChar(100)
+  fiscalAddressCity       String   @map("fiscal_address_city") @db.VarChar(100)
+  fiscalAddressState      String   @map("fiscal_address_state") @db.VarChar(100)
+  fiscalAddressZip        String   @map("fiscal_address_zip") @db.VarChar(10)
+  createdAt               DateTime @default(now()) @map("created_at")
+  updatedAt               DateTime @updatedAt @map("updated_at")
+
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@map("fiscal_data")
+}
+
+model StudentAcademicHistory {
+  id            Int            @id @default(autoincrement())
+  studentId     Int            @map("student_id")
+  schoolCycleId Int            @map("school_cycle_id")
+  groupId       Int            @map("group_id")
+  status        AcademicStatus
+  notes         String?        @db.Text
+  createdAt     DateTime       @default(now()) @map("created_at")
+
+  student     Student     @relation(fields: [studentId], references: [id])
+  schoolCycle SchoolCycle @relation(fields: [schoolCycleId], references: [id])
+  group       Group       @relation(fields: [groupId], references: [id])
+
+  @@unique([studentId, schoolCycleId], name: "unique_student_per_cycle")
+  @@map("student_academic_history")
+}
+
+// ─── Financial Tables ────────────────────────────────────
+
+model PaymentConcept {
+  id            Int                @id @default(autoincrement())
+  name          String             @db.VarChar(100)
+  type          PaymentConceptType
+  defaultAmount Decimal            @map("default_amount") @db.Decimal(10, 2)
+  isMonthly     Boolean            @default(false) @map("is_monthly")
+  isActive      Boolean            @default(true) @map("is_active")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  payments              Payment[]
+  recurringPaymentRules RecurringPaymentRule[]
+
+  @@map("payment_concepts")
+}
+
+model RecurringPaymentRule {
+  id               Int      @id @default(autoincrement())
+  paymentConceptId Int      @map("payment_concept_id")
+  schoolCycleId    Int      @map("school_cycle_id")
+  generationDay    Int      @map("generation_day")
+  dueDay           Int      @map("due_day")
+  startMonth       Int      @map("start_month")
+  endMonth         Int      @map("end_month")
+  amount           Decimal? @db.Decimal(10, 2)
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  paymentConcept PaymentConcept @relation(fields: [paymentConceptId], references: [id])
+  schoolCycle    SchoolCycle    @relation(fields: [schoolCycleId], references: [id])
+
+  @@map("recurring_payment_rules")
+}
+
+model Payment {
+  id               Int           @id @default(autoincrement())
+  studentId        Int           @map("student_id")
+  paymentConceptId Int           @map("payment_concept_id")
+  schoolCycleId    Int           @map("school_cycle_id")
+  appliesToMonth   Int?          @map("applies_to_month") @db.TinyInt
+  baseAmount       Decimal       @map("base_amount") @db.Decimal(10, 2)
+  discountPercent  Decimal       @default(0.00) @map("discount_percent") @db.Decimal(5, 2)
+  surchargePercent Decimal       @default(0.00) @map("surcharge_percent") @db.Decimal(5, 2)
+  finalAmount      Decimal       @map("final_amount") @db.Decimal(10, 2)
+  amountPaid       Decimal       @default(0.00) @map("amount_paid") @db.Decimal(10, 2)
+  status           PaymentStatus @default(pending)
+  dueDate          DateTime?     @map("due_date") @db.Date
+  paymentDate      DateTime?     @map("payment_date") @db.Date
+  paymentMethod    String?       @map("payment_method") @db.VarChar(50)
+  receiptNumber    String?       @map("receipt_number") @db.VarChar(50)
+  notes            String?       @db.Text
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  student        Student        @relation(fields: [studentId], references: [id])
+  paymentConcept PaymentConcept @relation(fields: [paymentConceptId], references: [id])
+  schoolCycle    SchoolCycle    @relation(fields: [schoolCycleId], references: [id])
+  uniforms       Uniform[]
+
+  @@unique([studentId, paymentConceptId, schoolCycleId, appliesToMonth], name: "unique_payment_per_concept_month")
+  @@map("payments")
+}
+
+model UniformCatalog {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(100)
+  description String?  @db.VarChar(255)
+  basePrice   Decimal  @map("base_price") @db.Decimal(10, 2)
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  uniforms Uniform[]
+
+  @@map("uniform_catalog")
+}
+
+model Uniform {
+  id               Int      @id @default(autoincrement())
+  studentId        Int      @map("student_id")
+  uniformCatalogId Int      @map("uniform_catalog_id")
+  size             String   @db.VarChar(20)
+  quantity         Int      @default(1)
+  unitPrice        Decimal  @map("unit_price") @db.Decimal(10, 2)
+  totalPrice       Decimal  @map("total_price") @db.Decimal(10, 2)
+  paymentId        Int?     @map("payment_id")
+  isDelivered      Boolean  @default(false) @map("is_delivered")
+  deliveryDate     DateTime? @map("delivery_date") @db.Date
+  orderDate        DateTime @map("order_date") @db.Date
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  student        Student        @relation(fields: [studentId], references: [id])
+  uniformCatalog UniformCatalog @relation(fields: [uniformCatalogId], references: [id])
+  payment        Payment?       @relation(fields: [paymentId], references: [id])
+
+  @@map("uniforms")
+}
+
+model Withdrawal {
+  id                       Int      @id @default(autoincrement())
+  studentId                Int      @unique @map("student_id")
+  withdrawalDate           DateTime @map("withdrawal_date") @db.Date
+  reason                   String   @db.Text
+  pendingDebtAtWithdrawal  Decimal  @map("pending_debt_at_withdrawal") @db.Decimal(10, 2)
+  schoolCycleId            Int      @map("school_cycle_id")
+  createdAt                DateTime @default(now()) @map("created_at")
+
+  student     Student     @relation(fields: [studentId], references: [id])
+  schoolCycle SchoolCycle @relation(fields: [schoolCycleId], references: [id])
+
+  @@map("withdrawals")
 }

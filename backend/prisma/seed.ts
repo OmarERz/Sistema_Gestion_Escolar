@@ -1,0 +1,124 @@
+/**
+ * Database seed script.
+ * Creates default data: admin user, payment concepts, school cycle, and groups.
+ * Safe to run multiple times — uses upsert to avoid duplicates.
+ */
+
+import { PrismaClient, GroupLevel } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('Seeding database...');
+
+  // ─── Admin User ──────────────────────────────────────────
+  const passwordHash = await bcrypt.hash('ColegioAlas26', 12);
+
+  const admin = await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: {
+      username: 'admin',
+      passwordHash,
+      fullName: 'Administrador',
+      isActive: true,
+    },
+  });
+  console.log(`  ✓ Admin user: ${admin.username}`);
+
+  // ─── Payment Concepts ────────────────────────────────────
+  const concepts = [
+    { name: 'Inscripción', type: 'mandatory' as const, defaultAmount: 3000, isMonthly: false },
+    { name: 'Colegiatura', type: 'mandatory' as const, defaultAmount: 2500, isMonthly: true },
+    { name: 'Material',    type: 'mandatory' as const, defaultAmount: 1500, isMonthly: false },
+    { name: 'Seguro',      type: 'mandatory' as const, defaultAmount: 800,  isMonthly: false },
+  ];
+
+  for (const concept of concepts) {
+    await prisma.paymentConcept.upsert({
+      where: { id: concepts.indexOf(concept) + 1 },
+      update: {},
+      create: {
+        name: concept.name,
+        type: concept.type,
+        defaultAmount: concept.defaultAmount,
+        isMonthly: concept.isMonthly,
+        isActive: true,
+      },
+    });
+  }
+  console.log(`  ✓ Payment concepts: ${concepts.map(c => c.name).join(', ')}`);
+
+  // ─── School Cycle ────────────────────────────────────────
+  const cycle = await prisma.schoolCycle.upsert({
+    where: { name: '2025-2026' },
+    update: {},
+    create: {
+      name: '2025-2026',
+      startDate: new Date('2025-08-01'),
+      endDate: new Date('2026-07-31'),
+      isActive: true,
+    },
+  });
+  console.log(`  ✓ School cycle: ${cycle.name} (active)`);
+
+  // ─── Groups ──────────────────────────────────────────────
+  // Kinder 1-3 (A, B), Primaria 1-6 (A, B), Secundaria 1-3 (A, B)
+  const groupDefinitions: { level: GroupLevel; grades: number[] }[] = [
+    { level: 'kinder',     grades: [1, 2, 3] },
+    { level: 'primaria',   grades: [1, 2, 3, 4, 5, 6] },
+    { level: 'secundaria', grades: [1, 2, 3] },
+  ];
+
+  const sections = ['A', 'B'];
+  let promotionOrder = 1;
+  let groupCount = 0;
+
+  for (const def of groupDefinitions) {
+    for (const grade of def.grades) {
+      for (const section of sections) {
+        const name = `${grade}-${section}`;
+
+        // Check if group already exists for this cycle
+        const existing = await prisma.group.findFirst({
+          where: {
+            level: def.level,
+            grade: String(grade),
+            section,
+            schoolCycleId: cycle.id,
+          },
+        });
+
+        if (!existing) {
+          await prisma.group.create({
+            data: {
+              name,
+              level: def.level,
+              grade: String(grade),
+              section,
+              promotionOrder,
+              schoolCycleId: cycle.id,
+              isActive: true,
+            },
+          });
+          groupCount++;
+        }
+
+        promotionOrder++;
+      }
+    }
+  }
+  console.log(`  ✓ Groups created: ${groupCount} (Kinder 1-3, Primaria 1-6, Secundaria 1-3 — sections A, B)`);
+
+  console.log('Seed completed successfully.');
+}
+
+main()
+  .catch((e) => {
+    console.error('Seed failed:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
