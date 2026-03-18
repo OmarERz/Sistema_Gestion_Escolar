@@ -241,7 +241,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Output:** Database with all tables created and seed data inserted
 
-### Step 3: Backend Foundation
+### Step 3: Backend Foundation ✅
 - Express app setup: CORS, JSON parsing, helmet, morgan
 - Error handler middleware + `AppError` class
 - JWT auth middleware (simplified for single admin)
@@ -376,7 +376,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 ```mermaid
 graph TD
     S1[Step 1: Scaffolding ✅] --> S2[Step 2: DB Schema + Seed ✅]
-    S1 --> S3[Step 3: Backend Foundation]
+    S1 --> S3[Step 3: Backend Foundation ✅]
     S1 --> S4[Step 4: Frontend Foundation]
 
     S2 --> S5[Step 5: School Cycles]
@@ -419,7 +419,7 @@ graph TD
 |------|-------------|
 | 1 ✅ | `npm run dev` starts both servers without errors |
 | 2 ✅ | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
-| 3 | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
+| 3 ✅ | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
 | 4 | Login page works; authenticated users see sidebar layout; navigation routes render |
 | 5 | Create/edit/activate school cycles via UI |
 | 6 | Create groups, see student counts, filter by cycle |

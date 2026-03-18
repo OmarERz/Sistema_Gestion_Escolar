@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
@@ -21,6 +22,9 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, message: 'Sistema de Gestión API is running' });
 });
+
+// Routes
+app.use('/api/auth', authRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
