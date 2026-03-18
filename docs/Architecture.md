@@ -6,8 +6,8 @@
 
 | Layer | Technology | Justification |
 |-------|-----------|---------------|
-| **Frontend** | React 18 + TypeScript + Vite | React is the most widely adopted UI library with a vast ecosystem. TypeScript adds compile-time safety. Vite provides fast dev server and optimized builds. |
-| **UI Library** | Material UI (MUI) v5 | Mature component library with built-in Spanish locale support, DataGrid for tables, date pickers, and a theming system for consistent branding. |
+| **Frontend** | React 19 + TypeScript + Vite 8 | React is the most widely adopted UI library with a vast ecosystem. TypeScript adds compile-time safety. Vite provides fast dev server and optimized builds. |
+| **UI Library** | Material UI (MUI) v7 | Mature component library with built-in Spanish locale support, DataGrid for tables, date pickers, and a theming system for consistent branding. |
 | **Forms** | React Hook Form + Zod | React Hook Form is performant (minimal re-renders). Zod provides schema-based validation that can be shared conceptually with backend validation. |
 | **Server State** | TanStack Query (React Query) | Handles API data fetching, caching, background refetching, and cache invalidation — ideal for CRUD-heavy applications. Eliminates the need for Redux. |
 | **Backend** | Node.js + Express + TypeScript | Express is the most established Node.js framework. TypeScript ensures type safety across the full stack. Lightweight and flexible for a layered architecture. |
@@ -62,7 +62,7 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 │                                         ▼                   │
 │                                ┌──────────────────┐        │
 │                                │ MySQL 8           │        │
-│                                │ (14 tables)       │        │
+│                                │ (15 tables)       │        │
 │                                └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -74,6 +74,13 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 | **Presentation** | Routes, Controllers, Middleware | Parse HTTP requests, authenticate, validate input, format responses. No business logic. |
 | **Business Logic** | Services | All business rules: debt calculation, payment generation, withdrawal processing, PDF generation, overdue checks. |
 | **Data Access** | Prisma Client | Type-safe database queries, migrations, seeding. Auto-generated from `schema.prisma`. |
+
+### UI Conventions
+
+- **Dark theme**: Navy palette (#0B0F1A background, #111827 paper, #29B6F6 cyan accent). Shadows over borders.
+- **Server-side sorting**: All list endpoints accept `?sortBy=field&sortDir=asc|desc`. Sort is validated against an allowlist per endpoint, applied via Prisma `orderBy`, and works across all pages.
+- **Pagination**: All list endpoints accept `?page=1&limit=20`. Default 20 rows per page.
+- **Design principles**: Font smoothing (antialiased), tabular-nums on numbers, text-wrap balance on headings, scale-on-press (0.96) for buttons, min 40px hit areas.
 
 ---
 
@@ -114,7 +121,7 @@ graph TB
     subgraph Database["Database (MySQL 8 - Port 3306)"]
         direction TB
         Prisma["Prisma Client<br/>(Auto-generated)"]
-        Tables["14 Tables<br/>students, guardians, groups,<br/>payments, uniforms, withdrawals,<br/>school_cycles, fiscal_data, etc."]
+        Tables["15 Tables<br/>students, guardians, groups,<br/>payments, uniforms, withdrawals,<br/>school_cycles, fiscal_data, etc."]
 
         Prisma --> Tables
     end

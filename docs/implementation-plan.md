@@ -18,8 +18,8 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
-| UI Library | Material UI (MUI) v5 |
+| Frontend | React 19 + TypeScript + Vite 8 |
+| UI Library | Material UI (MUI) v7 |
 | Forms | React Hook Form + Zod |
 | Server State | TanStack Query (React Query) |
 | Charts | Recharts |
