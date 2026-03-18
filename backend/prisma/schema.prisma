@@ -196,6 +196,18 @@ model StudentAcademicHistory {
 
 // ─── Financial Tables ────────────────────────────────────
 
+model PaymentMethod {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(50)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  payments Payment[]
+
+  @@map("payment_methods")
+}
+
 model PaymentConcept {
   id            Int                @id @default(autoincrement())
   name          String             @db.VarChar(100)
@@ -245,7 +257,7 @@ model Payment {
   status           PaymentStatus @default(pending)
   dueDate          DateTime?     @map("due_date") @db.Date
   paymentDate      DateTime?     @map("payment_date") @db.Date
-  paymentMethod    String?       @map("payment_method") @db.VarChar(50)
+  paymentMethodId  Int?          @map("payment_method_id")
   receiptNumber    String?       @map("receipt_number") @db.VarChar(50)
   notes            String?       @db.Text
   createdAt        DateTime      @default(now()) @map("created_at")
@@ -254,6 +266,7 @@ model Payment {
   student        Student        @relation(fields: [studentId], references: [id])
   paymentConcept PaymentConcept @relation(fields: [paymentConceptId], references: [id])
   schoolCycle    SchoolCycle    @relation(fields: [schoolCycleId], references: [id])
+  paymentMethod  PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
   uniforms       Uniform[]
 
   @@unique([studentId, paymentConceptId, schoolCycleId, appliesToMonth], name: "unique_payment_per_concept_month")

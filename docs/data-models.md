@@ -94,6 +94,14 @@ erDiagram
         datetime created_at
     }
 
+    PAYMENT_METHODS {
+        int id PK
+        varchar name UK
+        boolean is_active
+        datetime created_at
+        datetime updated_at
+    }
+
     PAYMENT_CONCEPTS {
         int id PK
         varchar name
@@ -133,7 +141,7 @@ erDiagram
         enum status
         date due_date
         date payment_date
-        varchar payment_method
+        int payment_method_id FK
         varchar receipt_number
         text notes
         datetime created_at
@@ -206,6 +214,7 @@ erDiagram
     GUARDIANS ||--o{ STUDENT_GUARDIAN : "linked via"
     GUARDIANS ||--o| FISCAL_DATA : "may have"
 
+    PAYMENT_METHODS ||--o{ PAYMENTS : "paid via"
     PAYMENT_CONCEPTS ||--o{ PAYMENTS : "categorizes"
     PAYMENT_CONCEPTS ||--o{ RECURRING_PAYMENT_RULES : "defines"
 
@@ -406,7 +415,28 @@ Tracks which group a student was assigned to in each school cycle, along with th
 
 ---
 
-### 8. payment_concepts
+### 8. payment_methods
+
+Catalog of standardized payment methods. Used for filtering payments by method and for reporting.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | INT | No | AUTO_INCREMENT | Primary key |
+| `name` | VARCHAR(50) | No | — | Method name, e.g. "Efectivo", "Transferencia", "Tarjeta" |
+| `is_active` | BOOLEAN | No | `true` | Whether the method is available for selection |
+| `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
+| `updated_at` | DATETIME | No | Auto-update | Last modification timestamp |
+
+**Constraints:**
+- `name` is UNIQUE
+
+**Business Rules:**
+- Default seed data: Efectivo, Transferencia, Tarjeta
+- Deactivated methods cannot be selected for new payments but existing payments retain the reference
+
+---
+
+### 9. payment_concepts
 
 Defines the types of payments that can be registered (e.g., tuition, inscription, materials).
 
@@ -428,7 +458,7 @@ Defines the types of payments that can be registered (e.g., tuition, inscription
 
 ---
 
-### 9. recurring_payment_rules
+### 10. recurring_payment_rules
 
 Configurable rules that determine when payment records are automatically generated for students.
 
@@ -458,7 +488,7 @@ Configurable rules that determine when payment records are automatically generat
 
 ---
 
-### 10. payments
+### 11. payments
 
 Individual payment records for each student. Tracks amounts, discounts, surcharges, status, and due dates.
 
@@ -477,7 +507,7 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 | `status` | ENUM | No | `'pending'` | Payment status (see enum below) |
 | `due_date` | DATE | Yes | `NULL` | Payment deadline date |
 | `payment_date` | DATE | Yes | `NULL` | Date payment was received |
-| `payment_method` | VARCHAR(50) | Yes | `NULL` | e.g. "Efectivo", "Transferencia", "Tarjeta" |
+| `payment_method_id` | INT (FK) | Yes | `NULL` | References `payment_methods.id` |
 | `receipt_number` | VARCHAR(50) | Yes | `NULL` | Receipt or reference number |
 | `notes` | TEXT | Yes | `NULL` | Additional notes |
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
@@ -485,7 +515,7 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 
 **Constraints:**
 - UNIQUE: (`student_id`, `payment_concept_id`, `school_cycle_id`, `applies_to_month`) — prevents duplicate payments
-- Foreign keys to `students`, `payment_concepts`, `school_cycles`
+- Foreign keys to `students`, `payment_concepts`, `school_cycles`, `payment_methods`
 
 **Business Rules:**
 - `final_amount = base_amount × (1 - discount_percent/100) × (1 + surcharge_percent/100)`
@@ -495,7 +525,7 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 
 ---
 
-### 11. uniform_catalog
+### 12. uniform_catalog
 
 Reference table for available uniform items and their prices.
 
@@ -515,7 +545,7 @@ Reference table for available uniform items and their prices.
 
 ---
 
-### 12. uniforms
+### 13. uniforms
 
 Individual uniform orders/purchases linked to students. Tracks order details and delivery status.
 
@@ -547,7 +577,7 @@ Individual uniform orders/purchases linked to students. Tracks order details and
 
 ---
 
-### 13. withdrawals
+### 14. withdrawals
 
 Records the withdrawal (baja) of a student, including the reason and a snapshot of their debt at the time.
 
@@ -572,7 +602,7 @@ Records the withdrawal (baja) of a student, including the reason and a snapshot 
 
 ---
 
-### 14. users
+### 15. users
 
 System users for authentication. Phase 1 supports a single admin account.
 
@@ -656,6 +686,7 @@ System users for authentication. Phase 1 supports a single admin account.
 | students → payments | 1:N | All payment records for a student |
 | students → uniforms | 1:N | All uniform orders for a student |
 | students → withdrawals | 1:0..1 | Optional withdrawal record |
+| payment_methods → payments | 1:N | Method used for payment |
 | payment_concepts → payments | 1:N | Concept categorizes payments |
 | payment_concepts → recurring_payment_rules | 1:N | Rules define auto-generation |
 | uniform_catalog → uniforms | 1:N | Catalog item referenced in orders |

@@ -33,7 +33,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 
 ---
 
-## Database Schema (14 Tables)
+## Database Schema (15 Tables)
 
 | Table | Purpose | Key Relationships |
 |-------|---------|-------------------|
@@ -46,7 +46,8 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | `student_academic_history` | Grade history per cycle | One per student per cycle |
 | `payment_concepts` | Payment type definitions | Referenced by payments |
 | `recurring_payment_rules` | Auto-generation rules | Defines when payments are created |
-| `payments` | Individual payment records | Belongs to student + concept + cycle |
+| `payment_methods` | Standardized payment method catalog | Referenced by payments |
+| `payments` | Individual payment records | Belongs to student + concept + cycle + method |
 | `uniform_catalog` | Available uniform items | Referenced by uniform orders |
 | `uniforms` | Uniform orders/purchases | Belongs to student + catalog item |
 | `withdrawals` | Student withdrawal records | One per student (optional) |
@@ -109,6 +110,13 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | POST | `/api/payment-concepts` | Create concept |
 | PUT | `/api/payment-concepts/:id` | Update concept |
 
+### Payment Methods (3 endpoints)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/payment-methods` | List all payment methods |
+| POST | `/api/payment-methods` | Create payment method |
+| PUT | `/api/payment-methods/:id` | Update payment method |
+
 ### Payments (5 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
@@ -153,31 +161,32 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 |--------|------|-------------|
 | GET | `/api/reports/student/:id/pdf` | Generate and stream student PDF report |
 
-**Total: ~46 endpoints**
+**Total: ~49 endpoints**
 
 ---
 
 ## Frontend Routes & Pages
 
-| Route | Page | Description |
-|-------|------|-------------|
-| `/login` | Login | Username + password authentication |
-| `/` | Dashboard | Metric cards + financial charts (recharts) |
-| `/alumnos` | StudentList | Searchable table with debt badge and status filter |
-| `/alumnos/nuevo` | StudentCreate | Multi-section form: student + up to 4 guardians + fiscal data |
-| `/alumnos/:id` | StudentDetail | Tabbed view: Info, Pagos, Uniformes, Historial Académico; PDF button |
-| `/grupos` | GroupList | Groups organized by cycle with student count |
-| `/pagos` | PaymentForm | Student search → concept selection → amount calculation → register |
-| `/pagos/historial` | PaymentHistory | Filterable payment table across all students |
-| `/uniformes` | UniformRegistration | Multi-item uniform order form per student |
-| `/uniformes/catalogo` | UniformCatalog | CRUD for uniform catalog items and prices |
-| `/bajas` | WithdrawalHistory | List of withdrawn students with details |
-| `/bajas/nueva` | WithdrawalForm | Student search → reason → confirmation → process |
-| `/configuracion/ciclos` | SchoolCycleManagement | CRUD for school cycles, activate/deactivate |
-| `/configuracion/conceptos` | PaymentConceptManagement | CRUD for payment concepts |
-| `/configuracion/pagos-recurrentes` | RecurringRulesManagement | Configure recurring payment generation rules |
+| Route | Page | Sidebar Section | Description |
+|-------|------|-----------------|-------------|
+| `/login` | Login | — | Username + password authentication |
+| `/` | Dashboard | Home | Metric cards + financial charts (recharts) |
+| `/alumnos` | StudentList | Matrícula | Searchable table with debt badge and status filter |
+| `/alumnos/nuevo` | StudentCreate | Matrícula | Multi-section form: student + up to 4 guardians + fiscal data |
+| `/alumnos/:id` | StudentDetail | Matrícula | Tabbed view: Info, Pagos, Uniformes, Historial Académico; pending payments summary; PDF button |
+| `/grupos` | GroupList | Matrícula | Groups organized by cycle with student count |
+| `/bajas` | WithdrawalHistory | Matrícula | List of withdrawn students with details |
+| `/bajas/nueva` | WithdrawalForm | Matrícula | Student search → reason → confirmation → process |
+| `/pagos` | PaymentForm | Finanzas | Student search → concept selection → amount calculation → register |
+| `/pagos/historial` | PaymentHistory | Finanzas | Filterable payment table across all students |
+| `/uniformes` | UniformRegistration | Finanzas | Multi-item uniform order form per student |
+| `/configuracion/ciclos` | SchoolCycleManagement | Configuración | CRUD for school cycles, activate/deactivate |
+| `/configuracion/conceptos` | PaymentConceptManagement | Configuración | CRUD for payment concepts |
+| `/configuracion/pagos-recurrentes` | RecurringRulesManagement | Configuración | Configure recurring payment generation rules |
+| `/configuracion/catalogo-uniformes` | UniformCatalog | Configuración | CRUD for uniform catalog items and prices |
+| `/configuracion/metodos-pago` | PaymentMethodManagement | Configuración | CRUD for payment methods (Efectivo, Transferencia, Tarjeta) |
 
-**Total: 15 pages**
+**Total: 16 pages**
 
 ---
 
@@ -279,15 +288,15 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 - **Frontend:**
   - StudentList: searchable DataGrid with debt badge, status filter
   - StudentCreate: multi-section form (student data + up to 4 guardians + fiscal data)
-  - StudentDetail: tabbed view (Info tab populated, other tabs placeholder)
+  - StudentDetail: tabbed view (Info tab populated, other tabs placeholder); pending payments summary at the top
   - GuardianForm with real-time duplicate detection
   - FiscalDataForm as collapsible section
 
 **Dependencies:** Step 6 (students reference groups)
 
-### Step 8: Payment Concepts Module
-- **Backend:** CRUD endpoints for payment_concepts
-- **Frontend:** PaymentConceptManagement page
+### Step 8: Payment Concepts & Methods Module
+- **Backend:** CRUD endpoints for payment_concepts and payment_methods
+- **Frontend:** PaymentConceptManagement page, PaymentMethodManagement page
 
 **Dependencies:** Steps 1-4
 

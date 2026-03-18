@@ -1,6 +1,7 @@
 /**
  * Database seed script.
- * Creates default data: admin user, payment concepts, school cycle, and groups.
+ * Creates default data: admin user, payment concepts, payment methods,
+ * school cycle, and groups.
  * Safe to run multiple times — uses upsert to avoid duplicates.
  */
 
@@ -49,6 +50,18 @@ async function main() {
     });
   }
   console.log(`  ✓ Payment concepts: ${concepts.map(c => c.name).join(', ')}`);
+
+  // ─── Payment Methods ──────────────────────────────────────
+  const methods = ['Efectivo', 'Transferencia', 'Tarjeta'];
+
+  for (const name of methods) {
+    await prisma.paymentMethod.upsert({
+      where: { name },
+      update: {},
+      create: { name, isActive: true },
+    });
+  }
+  console.log(`  ✓ Payment methods: ${methods.join(', ')}`);
 
   // ─── School Cycle ────────────────────────────────────────
   const cycle = await prisma.schoolCycle.upsert({
