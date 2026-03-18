@@ -227,7 +227,7 @@ export default function GroupList() {
       </Box>
 
       <Card>
-        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+        <CardContent>
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
@@ -265,8 +265,7 @@ export default function GroupList() {
                           Sección
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell>Ciclo</TableCell>
-                      <TableCell align="right">
+                      <TableCell>
                         <TableSortLabel
                           active={sortBy === 'students'}
                           direction={sortBy === 'students' ? sortDir : 'asc'}
@@ -275,7 +274,8 @@ export default function GroupList() {
                           Alumnos
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell align="right">Acciones</TableCell>
+                      <TableCell>Ciclo</TableCell>
+                      <TableCell>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -284,14 +284,13 @@ export default function GroupList() {
                         <TableCell>{LEVEL_LABELS[group.level] ?? group.level}</TableCell>
                         <TableCell>{group.grade}</TableCell>
                         <TableCell>{group.section}</TableCell>
+                        <TableCell>{group._count.students}</TableCell>
                         <TableCell>{group.schoolCycle.name}</TableCell>
-                        <TableCell align="right">{group._count.students}</TableCell>
-                        <TableCell align="right">
+                        <TableCell>
                           <IconButton
                             size="small"
                             onClick={() => openEditDialog(group)}
                             title="Editar"
-                            sx={{ minWidth: 40, minHeight: 40 }}
                           >
                             <Edit fontSize="small" />
                           </IconButton>
@@ -301,7 +300,6 @@ export default function GroupList() {
                                 size="small"
                                 onClick={() => openEmptyConfirm(group)}
                                 color="warning"
-                                sx={{ minWidth: 40, minHeight: 40 }}
                               >
                                 <CleaningServices fontSize="small" />
                               </IconButton>
@@ -312,7 +310,6 @@ export default function GroupList() {
                                 size="small"
                                 onClick={() => openDeleteConfirm(group)}
                                 color="error"
-                                sx={{ minWidth: 40, minHeight: 40 }}
                               >
                                 <Delete fontSize="small" />
                               </IconButton>
@@ -323,7 +320,7 @@ export default function GroupList() {
                     ))}
                     {groups.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={6} sx={{ py: 4 }}>
                           No hay grupos registrados para este ciclo
                         </TableCell>
                       </TableRow>
@@ -407,7 +404,7 @@ export default function GroupList() {
             margin="normal"
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
           <Button variant="contained" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Guardando...' : 'Guardar'}
@@ -427,7 +424,7 @@ export default function GroupList() {
             ? Los alumnos quedarán sin grupo asignado.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={() => setEmptyConfirmOpen(false)}>Cancelar</Button>
           <Button
             variant="contained"
@@ -452,7 +449,7 @@ export default function GroupList() {
             ? Esta acción no se puede deshacer.
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={() => setDeleteConfirmOpen(false)}>Cancelar</Button>
           <Button
             variant="contained"

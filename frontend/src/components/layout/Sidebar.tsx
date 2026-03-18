@@ -132,9 +132,9 @@ export default function Sidebar() {
         <ListItemButton
           selected={isActive('/')}
           onClick={() => navigate('/')}
-          sx={{ borderRadius: 1, mb: 0.5, minHeight: 40 }}
+          sx={{ borderRadius: 1, mb: 0.5 }}
         >
-          <ListItemIcon sx={{ minWidth: 40 }}>
+          <ListItemIcon>
             <Dashboard />
           </ListItemIcon>
           <ListItemText primary="Dashboard" />
@@ -145,9 +145,9 @@ export default function Sidebar() {
           <Box key={section.title} sx={{ mt: 0.5 }}>
             <ListItemButton
               onClick={() => toggleSection(section.title)}
-              sx={{ borderRadius: 1, minHeight: 40 }}
+              sx={{ borderRadius: 1 }}
             >
-              <ListItemIcon sx={{ minWidth: 40 }}>
+              <ListItemIcon>
                 <Settings sx={{ fontSize: 20, color: 'text.secondary' }} />
               </ListItemIcon>
               <ListItemText
@@ -168,7 +168,7 @@ export default function Sidebar() {
                     key={item.path}
                     selected={isActive(item.path)}
                     onClick={() => navigate(item.path)}
-                    sx={{ pl: 4, borderRadius: 1, mb: 0.25, minHeight: 40 }}
+                    sx={{ pl: 4, borderRadius: 1, mb: 0.25 }}
                   >
                     <ListItemIcon sx={{ minWidth: 36 }}>
                       {item.icon}

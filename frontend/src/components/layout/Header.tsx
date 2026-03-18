@@ -29,7 +29,6 @@ export default function Header() {
           onClick={logout}
           size="small"
           title="Cerrar sesión"
-          sx={{ minWidth: 40, minHeight: 40 }}
         >
           <Logout fontSize="small" />
         </IconButton>

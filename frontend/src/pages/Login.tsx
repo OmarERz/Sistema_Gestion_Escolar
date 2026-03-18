@@ -97,7 +97,6 @@ export default function Login() {
                       <IconButton
                         onClick={() => setShowPassword(!showPassword)}
                         edge="end"
-                        sx={{ minWidth: 40, minHeight: 40 }}
                       >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>

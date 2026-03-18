@@ -82,6 +82,8 @@ const theme = createTheme({
     MuiIconButton: {
       styleOverrides: {
         root: {
+          minWidth: 40,
+          minHeight: 40,
           transitionProperty: 'background-color, color, scale',
           transitionDuration: '150ms',
           '&:active': {
@@ -105,6 +107,7 @@ const theme = createTheme({
         root: {
           fontVariantNumeric: 'tabular-nums',
           borderBottomColor: 'rgba(148, 163, 184, 0.08)',
+          textAlign: 'center',
         },
         head: {
           fontWeight: 600,
@@ -166,6 +169,25 @@ const theme = createTheme({
         },
       },
     },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: 0,
+          '&:last-child': {
+            paddingBottom: 0,
+          },
+        },
+      },
+    },
+    MuiDialogActions: {
+      styleOverrides: {
+        root: {
+          paddingLeft: 24,
+          paddingRight: 24,
+          paddingBottom: 16,
+        },
+      },
+    },
     MuiChip: {
       styleOverrides: {
         root: {
@@ -176,6 +198,7 @@ const theme = createTheme({
     MuiListItemButton: {
       styleOverrides: {
         root: {
+          minHeight: 40,
           transitionProperty: 'background-color',
           transitionDuration: '150ms',
           '&.Mui-selected': {
@@ -184,6 +207,13 @@ const theme = createTheme({
               backgroundColor: 'rgba(41, 182, 246, 0.18)',
             },
           },
+        },
+      },
+    },
+    MuiListItemIcon: {
+      styleOverrides: {
+        root: {
+          minWidth: 40,
         },
       },
     },

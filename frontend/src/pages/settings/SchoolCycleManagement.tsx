@@ -142,7 +142,7 @@ export default function SchoolCycleManagement() {
       </Box>
 
       <Card>
-        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+        <CardContent>
           {isLoading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
@@ -189,7 +189,7 @@ export default function SchoolCycleManagement() {
                           Estado
                         </TableSortLabel>
                       </TableCell>
-                      <TableCell align="right">Acciones</TableCell>
+                      <TableCell>Acciones</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -209,12 +209,11 @@ export default function SchoolCycleManagement() {
                             size="small"
                           />
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell>
                           <IconButton
                             size="small"
                             onClick={() => openEditDialog(cycle)}
                             title="Editar"
-                            sx={{ minWidth: 40, minHeight: 40 }}
                           >
                             <Edit fontSize="small" />
                           </IconButton>
@@ -224,7 +223,6 @@ export default function SchoolCycleManagement() {
                               onClick={() => openActivateConfirm(cycle)}
                               title="Activar"
                               color="primary"
-                              sx={{ minWidth: 40, minHeight: 40 }}
                             >
                               <CheckCircle fontSize="small" />
                             </IconButton>
@@ -234,7 +232,7 @@ export default function SchoolCycleManagement() {
                     ))}
                     {cycles.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={5} sx={{ py: 4 }}>
                           No hay ciclos escolares registrados
                         </TableCell>
                       </TableRow>
@@ -293,7 +291,7 @@ export default function SchoolCycleManagement() {
             slotProps={{ inputLabel: { shrink: true } }}
           />
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={() => setDialogOpen(false)}>Cancelar</Button>
           <Button variant="contained" onClick={handleSave} disabled={isSaving}>
             {isSaving ? 'Guardando...' : 'Guardar'}
@@ -312,7 +310,7 @@ export default function SchoolCycleManagement() {
             )}
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Cancelar</Button>
           <Button
             variant="contained"
