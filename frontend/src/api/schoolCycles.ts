@@ -2,10 +2,15 @@ import apiClient from './client';
 import type { PaginatedResponse, ApiResponse } from '@/types/common';
 import type { SchoolCycle, SchoolCycleFormData } from '@/types/schoolCycle';
 
-export async function getSchoolCycles(page = 1, limit = 20): Promise<PaginatedResponse<SchoolCycle>> {
+export async function getSchoolCycles(
+  page = 1,
+  limit = 20,
+  sortBy?: string,
+  sortDir?: string,
+): Promise<PaginatedResponse<SchoolCycle>> {
   const { data } = await apiClient.get<PaginatedResponse<SchoolCycle>>(
     '/school-cycles',
-    { params: { page, limit } },
+    { params: { page, limit, sortBy, sortDir } },
   );
   return data;
 }

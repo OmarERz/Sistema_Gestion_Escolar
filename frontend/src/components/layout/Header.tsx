@@ -15,8 +15,9 @@ export default function Header() {
         ml: `${DRAWER_WIDTH}px`,
         bgcolor: 'background.paper',
         color: 'text.primary',
-        borderBottom: 'none',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        boxShadow: 'none',
       }}
     >
       <Toolbar>

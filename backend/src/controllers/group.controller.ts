@@ -5,16 +5,19 @@
 
 import { Request, Response } from 'express';
 import * as groupService from '../services/group.service.js';
-import { successResponse, paginatedResponse, parsePagination } from '../utils/apiResponse.js';
+import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
 import type { CreateGroupInput, UpdateGroupInput } from '../schemas/group.schema.js';
+
+const SORTABLE_FIELDS = ['level', 'grade', 'section', 'promotionOrder', 'students'];
 
 export async function list(req: Request, res: Response) {
   const pagination = parsePagination(req.query as { page?: string; limit?: string });
+  const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, SORTABLE_FIELDS, 'promotionOrder');
   const schoolCycleId = req.query.schoolCycleId
     ? parseInt(req.query.schoolCycleId as string, 10)
     : undefined;
 
-  const { data, total } = await groupService.list(pagination, { schoolCycleId });
+  const { data, total } = await groupService.list(pagination, { schoolCycleId }, sort);
   paginatedResponse(res, data, total, pagination);
 }
 

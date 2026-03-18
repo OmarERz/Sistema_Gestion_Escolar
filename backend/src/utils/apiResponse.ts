@@ -25,11 +25,28 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
+export interface SortParams {
+  sortBy: string;
+  sortDir: 'asc' | 'desc';
+}
+
 /** Extracts page/limit from query params with defaults (page=1, limit=20) */
 export function parsePagination(query: { page?: string; limit?: string }): PaginationParams {
   const page = Math.max(1, parseInt(query.page || '1', 10));
   const limit = Math.min(100, Math.max(1, parseInt(query.limit || '20', 10)));
   return { page, limit, skip: (page - 1) * limit };
+}
+
+/** Extracts sortBy/sortDir from query params, validated against allowed fields */
+export function parseSort(
+  query: { sortBy?: string; sortDir?: string },
+  allowedFields: string[],
+  defaultField: string,
+  defaultDir: 'asc' | 'desc' = 'asc',
+): SortParams {
+  const sortBy = allowedFields.includes(query.sortBy ?? '') ? query.sortBy! : defaultField;
+  const sortDir = query.sortDir === 'desc' ? 'desc' : query.sortDir === 'asc' ? 'asc' : defaultDir;
+  return { sortBy, sortDir };
 }
 
 export function successResponse(res: Response, data: unknown, statusCode = 200) {

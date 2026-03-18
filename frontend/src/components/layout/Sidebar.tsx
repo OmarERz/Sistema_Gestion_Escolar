@@ -99,8 +99,6 @@ export default function Sidebar() {
         '& .MuiDrawer-paper': {
           width: DRAWER_WIDTH,
           boxSizing: 'border-box',
-          borderRight: 'none',
-          boxShadow: '1px 0 3px rgba(0,0,0,0.05), 2px 0 8px rgba(0,0,0,0.03)',
         },
       }}
     >

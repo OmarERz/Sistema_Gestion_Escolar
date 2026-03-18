@@ -28,6 +28,14 @@ School management system (Phase 1). Monorepo with npm workspaces: `backend/` (Ex
 - Response format: `{ success, data, pagination: { page, limit, total, totalPages } }`
 - All frontend tables use paginated queries with 20 rows per page as default
 
+### Sorting
+
+- All backend list endpoints accept `?sortBy=field&sortDir=asc|desc`
+- Server-side sorting via Prisma `orderBy` — validated against an allowlist of fields per endpoint
+- Use `parseSort()` helper from `apiResponse.ts` in controllers
+- Frontend tables use `TableSortLabel` and pass sort params through hooks to the API
+- Changing sort resets page to 0
+
 ### Form Inputs
 
 - All text inputs must include a `placeholder` with a sample value showing the expected format (e.g., `"ej. 2026-2027"`, `"ej. Juan Carlos"`, `"ej. 6141234567"`)

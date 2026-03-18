@@ -12,6 +12,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  TableSortLabel,
   Chip,
   IconButton,
   Dialog,
@@ -32,8 +33,13 @@ import {
 } from '@/hooks/useSchoolCycles';
 import type { SchoolCycle, SchoolCycleFormData } from '@/types/schoolCycle';
 
+type SortKey = 'name' | 'startDate' | 'endDate' | 'isActive';
+type SortDir = 'asc' | 'desc';
+
 export default function SchoolCycleManagement() {
   const [page, setPage] = useState(0);
+  const [sortBy, setSortBy] = useState<SortKey>('startDate');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [editingCycle, setEditingCycle] = useState<SchoolCycle | null>(null);
@@ -47,13 +53,23 @@ export default function SchoolCycleManagement() {
   });
 
   const { enqueueSnackbar } = useSnackbar();
-  const { data: response, isLoading } = useSchoolCycles(page + 1);
+  const { data: response, isLoading } = useSchoolCycles(page + 1, 20, sortBy, sortDir);
   const createMutation = useCreateSchoolCycle();
   const updateMutation = useUpdateSchoolCycle();
   const activateMutation = useActivateSchoolCycle();
 
   const cycles = response?.data ?? [];
   const total = response?.pagination?.total ?? 0;
+
+  const handleSort = (key: SortKey) => {
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
 
   const openCreateDialog = () => {
     setEditingCycle(null);
@@ -137,10 +153,42 @@ export default function SchoolCycleManagement() {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Nombre</TableCell>
-                      <TableCell>Fecha Inicio</TableCell>
-                      <TableCell>Fecha Fin</TableCell>
-                      <TableCell>Estado</TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'name'}
+                          direction={sortBy === 'name' ? sortDir : 'asc'}
+                          onClick={() => handleSort('name')}
+                        >
+                          Nombre
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'startDate'}
+                          direction={sortBy === 'startDate' ? sortDir : 'asc'}
+                          onClick={() => handleSort('startDate')}
+                        >
+                          Fecha Inicio
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'endDate'}
+                          direction={sortBy === 'endDate' ? sortDir : 'asc'}
+                          onClick={() => handleSort('endDate')}
+                        >
+                          Fecha Fin
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'isActive'}
+                          direction={sortBy === 'isActive' ? sortDir : 'asc'}
+                          onClick={() => handleSort('isActive')}
+                        >
+                          Estado
+                        </TableSortLabel>
+                      </TableCell>
                       <TableCell align="right">Acciones</TableCell>
                     </TableRow>
                   </TableHead>

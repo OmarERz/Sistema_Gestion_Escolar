@@ -5,12 +5,15 @@
 
 import { Request, Response } from 'express';
 import * as schoolCycleService from '../services/schoolCycle.service.js';
-import { successResponse, paginatedResponse, parsePagination } from '../utils/apiResponse.js';
+import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
 import type { CreateSchoolCycleInput, UpdateSchoolCycleInput } from '../schemas/schoolCycle.schema.js';
+
+const SORTABLE_FIELDS = ['name', 'startDate', 'endDate', 'isActive'];
 
 export async function list(req: Request, res: Response) {
   const pagination = parsePagination(req.query as { page?: string; limit?: string });
-  const { data, total } = await schoolCycleService.list(pagination);
+  const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, SORTABLE_FIELDS, 'startDate', 'desc');
+  const { data, total } = await schoolCycleService.list(pagination, sort);
   paginatedResponse(res, data, total, pagination);
 }
 

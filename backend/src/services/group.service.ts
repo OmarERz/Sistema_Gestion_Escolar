@@ -9,7 +9,7 @@
 import prisma from '../config/database.js';
 import { AppError } from '../utils/apiResponse.js';
 import type { CreateGroupInput, UpdateGroupInput } from '../schemas/group.schema.js';
-import type { PaginationParams } from '../utils/apiResponse.js';
+import type { PaginationParams, SortParams } from '../utils/apiResponse.js';
 
 const LEVEL_ORDER: Record<string, number> = {
   kinder: 1,
@@ -30,10 +30,16 @@ function calculatePromotionOrder(level: string, grade: string, section: string):
 export async function list(
   pagination: PaginationParams,
   filters: { schoolCycleId?: number },
+  sort: SortParams,
 ) {
   const where = {
     ...(filters.schoolCycleId && { schoolCycleId: filters.schoolCycleId }),
   };
+
+  // Map frontend sort keys to Prisma orderBy
+  const orderBy = sort.sortBy === 'students'
+    ? { students: { _count: sort.sortDir as 'asc' | 'desc' } }
+    : { [sort.sortBy]: sort.sortDir };
 
   const [data, total] = await Promise.all([
     prisma.group.findMany({
@@ -42,7 +48,7 @@ export async function list(
         schoolCycle: { select: { name: true } },
         _count: { select: { students: true } },
       },
-      orderBy: { promotionOrder: 'asc' },
+      orderBy,
       skip: pagination.skip,
       take: pagination.limit,
     }),

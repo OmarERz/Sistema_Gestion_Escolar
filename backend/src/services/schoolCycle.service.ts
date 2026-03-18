@@ -7,12 +7,14 @@
 import prisma from '../config/database.js';
 import { AppError } from '../utils/apiResponse.js';
 import type { CreateSchoolCycleInput, UpdateSchoolCycleInput } from '../schemas/schoolCycle.schema.js';
-import type { PaginationParams } from '../utils/apiResponse.js';
+import type { PaginationParams, SortParams } from '../utils/apiResponse.js';
 
-export async function list(pagination: PaginationParams) {
+export async function list(pagination: PaginationParams, sort: SortParams) {
+  const orderBy = { [sort.sortBy]: sort.sortDir };
+
   const [data, total] = await Promise.all([
     prisma.schoolCycle.findMany({
-      orderBy: { startDate: 'desc' },
+      orderBy,
       skip: pagination.skip,
       take: pagination.limit,
     }),

@@ -6,9 +6,11 @@ export async function getGroups(
   page = 1,
   limit = 20,
   schoolCycleId?: number,
+  sortBy?: string,
+  sortDir?: string,
 ): Promise<PaginatedResponse<Group>> {
   const { data } = await apiClient.get<PaginatedResponse<Group>>('/groups', {
-    params: { page, limit, ...(schoolCycleId && { schoolCycleId }) },
+    params: { page, limit, ...(schoolCycleId && { schoolCycleId }), sortBy, sortDir },
   });
   return data;
 }

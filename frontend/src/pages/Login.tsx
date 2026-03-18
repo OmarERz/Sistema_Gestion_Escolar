@@ -53,7 +53,6 @@ export default function Login() {
           width: '100%',
           maxWidth: 400,
           mx: 2,
-          boxShadow: '0 4px 6px rgba(0,0,0,0.07), 0 10px 20px rgba(0,0,0,0.04)',
         }}
       >
         <CardContent sx={{ p: 4 }}>

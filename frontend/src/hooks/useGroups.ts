@@ -4,10 +4,10 @@ import type { GroupFormData } from '@/types/group';
 
 const QUERY_KEY = 'groups';
 
-export function useGroups(page = 1, limit = 20, schoolCycleId?: number) {
+export function useGroups(page = 1, limit = 20, schoolCycleId?: number, sortBy?: string, sortDir?: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit, schoolCycleId],
-    queryFn: () => groupsApi.getGroups(page, limit, schoolCycleId),
+    queryKey: [QUERY_KEY, page, limit, schoolCycleId, sortBy, sortDir],
+    queryFn: () => groupsApi.getGroups(page, limit, schoolCycleId, sortBy, sortDir),
   });
 }
 

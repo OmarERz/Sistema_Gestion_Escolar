@@ -4,10 +4,10 @@ import type { SchoolCycleFormData } from '@/types/schoolCycle';
 
 const QUERY_KEY = 'schoolCycles';
 
-export function useSchoolCycles(page = 1, limit = 20) {
+export function useSchoolCycles(page = 1, limit = 20, sortBy?: string, sortDir?: string) {
   return useQuery({
-    queryKey: [QUERY_KEY, page, limit],
-    queryFn: () => schoolCyclesApi.getSchoolCycles(page, limit),
+    queryKey: [QUERY_KEY, page, limit, sortBy, sortDir],
+    queryFn: () => schoolCyclesApi.getSchoolCycles(page, limit, sortBy, sortDir),
   });
 }
 

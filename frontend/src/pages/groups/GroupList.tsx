@@ -12,6 +12,7 @@ import {
   TableHead,
   TableRow,
   TablePagination,
+  TableSortLabel,
   IconButton,
   Dialog,
   DialogTitle,
@@ -68,8 +69,13 @@ const INITIAL_FORM: GroupFormData = {
   section: '',
 };
 
+type SortKey = 'level' | 'grade' | 'section' | 'students' | 'promotionOrder';
+type SortDir = 'asc' | 'desc';
+
 export default function GroupList() {
   const [page, setPage] = useState(0);
+  const [sortBy, setSortBy] = useState<SortKey>('promotionOrder');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [filterCycleId, setFilterCycleId] = useState<number | undefined>(undefined);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false);
@@ -81,11 +87,9 @@ export default function GroupList() {
 
   const { enqueueSnackbar } = useSnackbar();
 
-  // Load all cycles (unpaginated, limit 100 is more than enough)
   const { data: cyclesResponse } = useSchoolCycles(1, 100);
   const cycles = cyclesResponse?.data ?? [];
 
-  // Set active cycle as default filter on first load
   useEffect(() => {
     if (filterCycleId === undefined && cycles.length > 0) {
       const active = cycles.find((c) => c.isActive);
@@ -93,7 +97,7 @@ export default function GroupList() {
     }
   }, [cycles, filterCycleId]);
 
-  const { data: response, isLoading } = useGroups(page + 1, 20, filterCycleId);
+  const { data: response, isLoading } = useGroups(page + 1, 20, filterCycleId, sortBy, sortDir);
   const createMutation = useCreateGroup();
   const updateMutation = useUpdateGroup();
   const emptyMutation = useEmptyGroup();
@@ -101,6 +105,16 @@ export default function GroupList() {
 
   const groups = response?.data ?? [];
   const total = response?.pagination?.total ?? 0;
+
+  const handleSort = (key: SortKey) => {
+    if (sortBy === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(key);
+      setSortDir('asc');
+    }
+    setPage(0);
+  };
 
   const openCreateDialog = () => {
     setEditingGroup(null);
@@ -224,11 +238,43 @@ export default function GroupList() {
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableCell>Nivel</TableCell>
-                      <TableCell>Grado</TableCell>
-                      <TableCell>Sección</TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'level' || sortBy === 'promotionOrder'}
+                          direction={sortBy === 'level' || sortBy === 'promotionOrder' ? sortDir : 'asc'}
+                          onClick={() => handleSort('promotionOrder')}
+                        >
+                          Nivel
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'grade'}
+                          direction={sortBy === 'grade' ? sortDir : 'asc'}
+                          onClick={() => handleSort('grade')}
+                        >
+                          Grado
+                        </TableSortLabel>
+                      </TableCell>
+                      <TableCell>
+                        <TableSortLabel
+                          active={sortBy === 'section'}
+                          direction={sortBy === 'section' ? sortDir : 'asc'}
+                          onClick={() => handleSort('section')}
+                        >
+                          Sección
+                        </TableSortLabel>
+                      </TableCell>
                       <TableCell>Ciclo</TableCell>
-                      <TableCell align="right">Alumnos</TableCell>
+                      <TableCell align="right">
+                        <TableSortLabel
+                          active={sortBy === 'students'}
+                          direction={sortBy === 'students' ? sortDir : 'asc'}
+                          onClick={() => handleSort('students')}
+                        >
+                          Alumnos
+                        </TableSortLabel>
+                      </TableCell>
                       <TableCell align="right">Acciones</TableCell>
                     </TableRow>
                   </TableHead>
