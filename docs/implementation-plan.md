@@ -73,13 +73,14 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | PUT | `/api/school-cycles/:id` | Update cycle |
 | PATCH | `/api/school-cycles/:id/activate` | Set as active cycle |
 
-### Groups (4 endpoints)
+### Groups (5 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/groups` | List groups (filter by cycle) |
 | POST | `/api/groups` | Create group |
 | PUT | `/api/groups/:id` | Update group |
-| GET | `/api/groups/:id/students` | List students in group |
+| PATCH | `/api/groups/:id/empty` | Remove all students from group |
+| DELETE | `/api/groups/:id` | Delete group (must be empty) |
 
 ### Students (8 endpoints)
 | Method | Path | Description |
@@ -277,9 +278,9 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Steps 1-4
 
-### Step 6: Groups Module
-- **Backend:** CRUD endpoints for groups, validation against school_cycle, student listing per group
-- **Frontend:** GroupList page with groups organized by cycle, student count display
+### Step 6: Groups Module ✅
+- **Backend:** CRUD endpoints for groups with level-grade validation, empty group and delete with guard, gap-formula promotionOrder
+- **Frontend:** GroupList page with cycle filter, paginated table, create/edit dialog with dynamic grade options, empty/delete with confirmation
 
 **Dependencies:** Step 5 (groups reference cycles)
 
@@ -392,7 +393,7 @@ graph TD
     S3 --> S5
     S4 --> S5
 
-    S5 --> S6[Step 6: Groups]
+    S5 --> S6[Step 6: Groups ✅]
     S6 --> S7[Step 7: Students & Guardians]
 
     S3 --> S8[Step 8: Payment Concepts]

@@ -103,7 +103,7 @@ model Student {
   lastName1      String        @map("last_name_1") @db.VarChar(100)
   lastName2      String?       @map("last_name_2") @db.VarChar(100)
   dateOfBirth    DateTime      @map("date_of_birth") @db.Date
-  groupId        Int           @map("group_id")
+  groupId        Int?          @map("group_id")
   schoolCycleId  Int           @map("school_cycle_id")
   enrollmentDate DateTime      @map("enrollment_date") @db.Date
   status         StudentStatus @default(active)
@@ -112,7 +112,7 @@ model Student {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
-  group             Group                    @relation(fields: [groupId], references: [id])
+  group             Group?                   @relation(fields: [groupId], references: [id])
   schoolCycle       SchoolCycle              @relation(fields: [schoolCycleId], references: [id])
   guardians         StudentGuardian[]
   academicHistories StudentAcademicHistory[]

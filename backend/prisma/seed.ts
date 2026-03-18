@@ -77,23 +77,29 @@ async function main() {
   console.log(`  ✓ School cycle: ${cycle.name} (active)`);
 
   // ─── Groups ──────────────────────────────────────────────
-  // Kinder 1-3 (A, B), Primaria 1-6 (A, B), Secundaria 1-3 (A, B)
+  // Kinder 1-3, Primaria 1-6, Secundaria 1-3, Prepa 1-3 (sections A, B)
+  // promotionOrder uses gap formula: levelIndex * 1000 + grade * 10 + sectionIndex
+  const LEVEL_ORDER: Record<GroupLevel, number> = {
+    kinder: 1, primaria: 2, secundaria: 3, prepa: 4,
+  };
+
   const groupDefinitions: { level: GroupLevel; grades: number[] }[] = [
     { level: 'kinder',     grades: [1, 2, 3] },
     { level: 'primaria',   grades: [1, 2, 3, 4, 5, 6] },
     { level: 'secundaria', grades: [1, 2, 3] },
+    { level: 'prepa',      grades: [1, 2, 3] },
   ];
 
   const sections = ['A', 'B'];
-  let promotionOrder = 1;
   let groupCount = 0;
 
   for (const def of groupDefinitions) {
     for (const grade of def.grades) {
       for (const section of sections) {
         const name = `${grade}-${section}`;
+        const sectionIndex = section.charCodeAt(0) - 65;
+        const promotionOrder = LEVEL_ORDER[def.level] * 1000 + grade * 10 + sectionIndex;
 
-        // Check if group already exists for this cycle
         const existing = await prisma.group.findFirst({
           where: {
             level: def.level,
@@ -117,12 +123,10 @@ async function main() {
           });
           groupCount++;
         }
-
-        promotionOrder++;
       }
     }
   }
-  console.log(`  ✓ Groups created: ${groupCount} (Kinder 1-3, Primaria 1-6, Secundaria 1-3 — sections A, B)`);
+  console.log(`  ✓ Groups created: ${groupCount} (Kinder 1-3, Primaria 1-6, Secundaria 1-3, Prepa 1-3 — sections A, B)`);
 
   console.log('Seed completed successfully.');
 }

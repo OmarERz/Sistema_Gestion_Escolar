@@ -261,7 +261,7 @@ Represents a student group within a school cycle. Groups have a level (kinder, p
 | `level` | ENUM | No | — | Education level (see enum below) |
 | `grade` | VARCHAR(10) | No | — | Numeric grade within level, e.g. "1", "2", "3" |
 | `section` | VARCHAR(10) | No | — | Section letter, e.g. "A", "B" |
-| `promotion_order` | INT | No | — | Numeric order for automatic promotion |
+| `promotion_order` | INT | No | — | Hierarchical order using gap formula: `levelIndex * 1000 + grade * 10 + sectionIndex` |
 | `school_cycle_id` | INT (FK) | No | — | References `school_cycles.id` |
 | `is_active` | BOOLEAN | No | `true` | Whether the group is currently active |
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
@@ -272,7 +272,7 @@ Represents a student group within a school cycle. Groups have a level (kinder, p
 - `school_cycle_id` references `school_cycles.id`
 
 **Business Rules:**
-- `promotion_order` determines the sequence when auto-promoting students to the next group
+- `promotion_order` uses a gap formula (`levelIndex * 1000 + grade * 10 + sectionIndex`) so new groups slot in without recalculating existing ones
 - Groups are tied to a specific school cycle; new cycles require recreating groups
 
 ---
@@ -288,7 +288,7 @@ Core entity representing an enrolled student. Contains personal data, current gr
 | `last_name_1` | VARCHAR(100) | No | — | Paternal last name (apellido paterno) |
 | `last_name_2` | VARCHAR(100) | Yes | `NULL` | Maternal last name (apellido materno) |
 | `date_of_birth` | DATE | No | — | Date of birth |
-| `group_id` | INT (FK) | No | — | Current group assignment |
+| `group_id` | INT (FK) | Yes | `NULL` | Current group assignment (null if unassigned) |
 | `school_cycle_id` | INT (FK) | No | — | Current school cycle |
 | `enrollment_date` | DATE | No | — | Date of enrollment |
 | `status` | ENUM | No | `'active'` | Student status (see enum below) |
