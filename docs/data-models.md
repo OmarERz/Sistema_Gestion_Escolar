@@ -1,5 +1,7 @@
 # Data Models — Sistema de Gestión Escolar
 
+> **Maintenance note:** If the database schema, relationships, or business rules change during development, update this document to reflect the current state.
+
 ## Entity Relationship Diagram
 
 ```mermaid

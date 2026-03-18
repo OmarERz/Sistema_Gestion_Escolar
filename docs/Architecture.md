@@ -1,5 +1,7 @@
 # Architecture Document — Sistema de Gestión Escolar
 
+> **Maintenance note:** If the tech stack, architecture decisions, or deployment strategy change during development, update this document to reflect the current state.
+
 ## 1. Tech Stack
 
 | Layer | Technology | Justification |
@@ -16,6 +18,7 @@
 | **Auth** | JWT (jsonwebtoken + bcryptjs) | Stateless authentication suitable for a single-admin Phase 1 setup. Simple to implement and extend later for multi-user support. |
 | **Charts** | Recharts | Composable chart library built on React and D3. Simple API for bar, line, and pie charts needed in the dashboard. |
 | **HTTP Client** | Axios | Feature-rich HTTP client with interceptors for JWT attachment and error handling. Better DX than native fetch for complex scenarios. |
+| **Testing** | Vitest | Native test framework for Vite/TypeScript projects. Used for backend integration tests on critical business logic (debt calculation, payment formulas, recurring rules). |
 
 ---
 

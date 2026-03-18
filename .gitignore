@@ -19,6 +19,11 @@ backend/prisma/migrations/**/migration_lock.toml
 *.swp
 *.swo
 
+# Claude Code (local config, plans, skills)
+.claude/
+.agents/
+skills-lock.json
+
 # OS
 .DS_Store
 Thumbs.db
@@ -28,7 +33,10 @@ Thumbs.db
 npm-debug.log*
 
 # Credentials
-Docs/database-credentials.md
+docs/database-credentials.md
+
+# Requirements docs (kept outside git)
+docs/*.docx
 
 # Coverage
 coverage/

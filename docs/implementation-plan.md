@@ -1,5 +1,7 @@
 # Implementation Plan — Sistema de Gestión Escolar (Phase 1)
 
+> **Maintenance note:** This document is the source of truth for the project plan. If the tech stack, implementation steps, business logic, or architecture change during development, update this document to reflect the current state. Keep step statuses up to date as work progresses.
+
 ## Overview
 
 Build Phase 1 of a school management system covering: student/guardian management, group management, payment registration with recurring rules, uniforms, student withdrawals, PDF reports, and a dashboard with charts.
@@ -27,6 +29,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | Validation | Zod |
 | PDF | pdfkit |
 | Auth | JWT + bcryptjs |
+| Testing | Vitest (backend integration tests for critical business logic) |
 
 ---
 
@@ -216,7 +219,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 ## Implementation Order
 
-### Step 1: Project Scaffolding
+### Step 1: Project Scaffolding ✅
 - Initialize monorepo with npm workspaces (root `package.json`)
 - Create Vite + React + TypeScript frontend (`frontend/`)
 - Create Express + TypeScript backend (`backend/`)
@@ -324,7 +327,21 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Step 9 (withdrawal snapshots debt)
 
-### Step 12: PDF Reports
+### Step 12: Business Logic Tests (Vitest)
+- Install `vitest` as backend devDependency
+- Add `test` and `test:watch` scripts to `backend/package.json`
+- Write integration tests for critical pure business logic functions:
+  - **Debt calculation** (`debt.service.ts`): verify `calculateTotalDebt` correctly sums pending/partial/overdue payments, ignores paid/cancelled
+  - **Payment amount calculation** (`payment.service.ts`): verify `calculateFinalAmount` applies discount and surcharge formula correctly
+  - **Recurring payment month range** (`recurringPayment.service.ts`): verify `shouldGenerateForMonth` handles same-year ranges, year-wrapping ranges (Aug→Jun), edge cases
+  - **Withdrawal validation** (`withdrawal.service.ts`): verify `buildWithdrawalRecord` snapshots debt and rejects already-withdrawn students
+- Tests target **exported pure functions only** (no DB, no mocks, no HTTP)
+- Test files located in `backend/src/services/__tests__/`
+
+**Dependencies:** Steps 9, 11 (services must be implemented first)
+**Output:** `npm run test --workspace=backend` passes ~15-20 tests
+
+### Step 13: PDF Reports
 - **Backend:** pdfkit-based student report generator
   - Student personal information
   - Payment history table
@@ -334,7 +351,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Steps 7, 9, 10 (report combines student, payment, uniform data)
 
-### Step 13: Dashboard
+### Step 14: Dashboard
 - **Backend:** Aggregation endpoints (total students, payment summaries, monthly breakdowns)
 - **Frontend:**
   - Metric cards: total active students, pending payments (count + amount), total debt, recent enrollments
@@ -342,7 +359,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Steps 7, 9 (dashboard aggregates student and payment data)
 
-### Step 14: Docker Deployment
+### Step 15: Docker Deployment
 - Backend Dockerfile (Node.js, runs Prisma migrations on startup)
 - Frontend Dockerfile (multi-stage: build React + serve with nginx)
 - `docker-compose.yml` with three services: `mysql`, `backend`, `frontend`
@@ -358,7 +375,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 ```mermaid
 graph TD
-    S1[Step 1: Scaffolding] --> S2[Step 2: DB Schema + Seed]
+    S1[Step 1: Scaffolding ✅] --> S2[Step 2: DB Schema + Seed]
     S1 --> S3[Step 3: Backend Foundation]
     S1 --> S4[Step 4: Frontend Foundation]
 
@@ -378,15 +395,18 @@ graph TD
     S7 --> S10[Step 10: Uniforms]
     S9 --> S11[Step 11: Withdrawals]
 
-    S7 --> S12[Step 12: PDF Reports]
-    S9 --> S12
-    S10 --> S12
+    S9 --> S12[Step 12: Business Logic Tests]
+    S11 --> S12
 
-    S7 --> S13[Step 13: Dashboard]
+    S7 --> S13[Step 13: PDF Reports]
     S9 --> S13
+    S10 --> S13
 
-    S12 --> S14[Step 14: Docker Deployment]
-    S13 --> S14
+    S7 --> S14[Step 14: Dashboard]
+    S9 --> S14
+
+    S13 --> S15[Step 15: Docker Deployment]
+    S14 --> S15
 ```
 
 ---
@@ -397,7 +417,7 @@ graph TD
 
 | Step | Verification |
 |------|-------------|
-| 1 | `npm run dev` starts both servers without errors |
+| 1 ✅ | `npm run dev` starts both servers without errors |
 | 2 | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
 | 3 | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
 | 4 | Login page works; authenticated users see sidebar layout; navigation routes render |
@@ -408,9 +428,10 @@ graph TD
 | 9 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
 | 10 | Create uniform orders, mark as delivered, verify catalog CRUD |
 | 11 | Process withdrawal, verify debt snapshot, student status changes, history preserved |
-| 12 | Generate PDF from StudentDetail, verify content includes payments + uniforms |
-| 13 | Dashboard shows correct metrics and charts |
-| 14 | `docker compose up` on macOS starts all services; full workflow works |
+| 12 | `npm run test --workspace=backend` — all ~15-20 tests pass for debt, payment calculation, recurring rules, withdrawal |
+| 13 | Generate PDF from StudentDetail, verify content includes payments + uniforms |
+| 14 | Dashboard shows correct metrics and charts |
+| 15 | `docker compose up` on macOS starts all services; full workflow works |
 
 ### End-to-End Integration Test
 
