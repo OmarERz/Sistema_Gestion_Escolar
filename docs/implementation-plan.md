@@ -260,14 +260,14 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Output:** Backend responds to auth endpoints, rejects unauthenticated requests
 
-### Step 4: Frontend Foundation
-- MUI theme configuration (colors, typography)
+### Step 4: Frontend Foundation ✅
+- MUI theme configuration (colors, typography, shadows over borders, tabular-nums)
 - AppLayout component: sidebar navigation + header + content area
-- React Router setup with all 15 routes
-- Axios client with JWT interceptor
+- React Router setup with all 16 routes
+- Axios client with JWT interceptor (auto-redirect on 401)
 - TanStack Query provider
 - Auth context + Login page + ProtectedRoute wrapper
-- Sidebar with Spanish navigation labels and icons
+- Sidebar with grouped sections (Home, Matrícula, Finanzas, Configuración)
 
 **Output:** Login works, authenticated users see the layout with navigation
 
@@ -386,7 +386,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 graph TD
     S1[Step 1: Scaffolding ✅] --> S2[Step 2: DB Schema + Seed ✅]
     S1 --> S3[Step 3: Backend Foundation ✅]
-    S1 --> S4[Step 4: Frontend Foundation]
+    S1 --> S4[Step 4: Frontend Foundation ✅]
 
     S2 --> S5[Step 5: School Cycles]
     S3 --> S5
@@ -429,7 +429,7 @@ graph TD
 | 1 ✅ | `npm run dev` starts both servers without errors |
 | 2 ✅ | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
 | 3 ✅ | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
-| 4 | Login page works; authenticated users see sidebar layout; navigation routes render |
+| 4 ✅ | Login page works; authenticated users see sidebar layout; navigation routes render |
 | 5 | Create/edit/activate school cycles via UI |
 | 6 | Create groups, see student counts, filter by cycle |
 | 7 | Create students with guardians, search, view detail, duplicate guardian detection works |
