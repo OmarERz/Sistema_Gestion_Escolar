@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { env } from './config/env.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
+import schoolCycleRoutes from './routes/schoolCycle.routes.js';
 
 const app = express();
 
@@ -25,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/school-cycles', schoolCycleRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

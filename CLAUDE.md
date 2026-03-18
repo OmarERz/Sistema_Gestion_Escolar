@@ -22,6 +22,16 @@ School management system (Phase 1). Monorepo with npm workspaces: `backend/` (Ex
 - **Backend pattern**: Routes → Controllers → Services → Prisma
 - **Frontend pattern**: Pages → Hooks (React Query) → API client (Axios)
 
+### Pagination
+
+- All backend list endpoints accept `?page=1&limit=20` (default limit: 20)
+- Response format: `{ success, data, pagination: { page, limit, total, totalPages } }`
+- All frontend tables use paginated queries with 20 rows per page as default
+
+### Form Inputs
+
+- All text inputs must include a `placeholder` with a sample value showing the expected format (e.g., `"ej. 2026-2027"`, `"ej. Juan Carlos"`, `"ej. 6141234567"`)
+
 ## Documentation Rules
 
 ### Code Comments

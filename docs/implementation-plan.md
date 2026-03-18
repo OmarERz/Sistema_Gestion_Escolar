@@ -271,7 +271,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Output:** Login works, authenticated users see the layout with navigation
 
-### Step 5: School Cycles Module
+### Step 5: School Cycles Module ✅
 - **Backend:** CRUD endpoints for school_cycles, activation logic (deactivate others)
 - **Frontend:** SchoolCycleManagement page with create/edit form and active toggle
 
@@ -388,7 +388,7 @@ graph TD
     S1 --> S3[Step 3: Backend Foundation ✅]
     S1 --> S4[Step 4: Frontend Foundation ✅]
 
-    S2 --> S5[Step 5: School Cycles]
+    S2 --> S5[Step 5: School Cycles ✅]
     S3 --> S5
     S4 --> S5
 
