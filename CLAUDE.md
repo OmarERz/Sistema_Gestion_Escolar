@@ -1,5 +1,10 @@
 # CLAUDE.md — Sistema de Gestion Escolar
 
+## Working Style
+
+- Do not make any changes or start implementation until you have 95% confidence that you know what to build. Ask follow-up questions until you have that confidence level.
+- Before creating any git commit, always present the proposed title and description to the user for approval. Only proceed with the commit after explicit approval of both.
+
 ## Project Overview
 
 School management system (Phase 1). Monorepo with npm workspaces: `backend/` (Express + TypeScript + Prisma + MySQL) and `frontend/` (React + TypeScript + Vite + MUI).
