@@ -7,6 +7,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.routes.js';
 import schoolCycleRoutes from './routes/schoolCycle.routes.js';
 import groupRoutes from './routes/group.routes.js';
+import studentRoutes from './routes/student.routes.js';
+import guardianRoutes from './routes/guardian.routes.js';
 
 const app = express();
 
@@ -29,6 +31,8 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/school-cycles', schoolCycleRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/guardians', guardianRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

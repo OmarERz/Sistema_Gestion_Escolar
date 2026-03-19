@@ -24,6 +24,8 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { Add, Edit, CheckCircle } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import dayjs, { type Dayjs } from 'dayjs';
 import { useSnackbar } from 'notistack';
 import {
   useSchoolCycles,
@@ -272,23 +274,21 @@ export default function SchoolCycleManagement() {
             margin="normal"
             autoFocus
           />
-          <TextField
-            fullWidth
+          <DatePicker
             label="Fecha de Inicio"
-            type="date"
-            value={formData.startDate}
-            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-            margin="normal"
-            slotProps={{ inputLabel: { shrink: true } }}
+            value={formData.startDate ? dayjs(formData.startDate) : null}
+            onChange={(value: Dayjs | null) =>
+              setFormData({ ...formData, startDate: value?.format('YYYY-MM-DD') ?? '' })
+            }
+            slotProps={{ textField: { fullWidth: true, margin: 'normal' } }}
           />
-          <TextField
-            fullWidth
+          <DatePicker
             label="Fecha de Fin"
-            type="date"
-            value={formData.endDate}
-            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-            margin="normal"
-            slotProps={{ inputLabel: { shrink: true } }}
+            value={formData.endDate ? dayjs(formData.endDate) : null}
+            onChange={(value: Dayjs | null) =>
+              setFormData({ ...formData, endDate: value?.format('YYYY-MM-DD') ?? '' })
+            }
+            slotProps={{ textField: { fullWidth: true, margin: 'normal' } }}
           />
         </DialogContent>
         <DialogActions>
