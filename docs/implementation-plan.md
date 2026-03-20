@@ -284,14 +284,13 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Step 5 (groups reference cycles)
 
-### Step 7: Students & Guardians Module
-- **Backend:** Student CRUD, Guardian CRUD with duplicate check, student_guardian linking (max 4), fiscal_data CRUD, academic history
+### Step 7: Students & Guardians Module ✅
+- **Backend:** Student CRUD, Guardian CRUD with duplicate check, student_guardian linking (max 4), fiscal_data CRUD, academic history, `noGroup` filter (students with no group assigned)
 - **Frontend:**
-  - StudentList: searchable DataGrid with debt badge, status filter
-  - StudentCreate: multi-section form (student data + up to 4 guardians + fiscal data)
-  - StudentDetail: tabbed view (Info tab populated, other tabs placeholder); pending payments summary at the top
-  - GuardianForm with real-time duplicate detection
-  - FiscalDataForm as collapsible section
+  - StudentList: searchable table with debt column, status/cycle/group filters (including "Sin grupo"), server-side sorting
+  - StudentCreate: multi-section form (student data + up to 4 dynamic guardians + collapsible fiscal data per guardian), real-time duplicate detection on blur
+  - StudentDetail: tabbed view (Info with editable student/guardian/fiscal dialogs, Pagos/Uniformes placeholders, Historial Académico table)
+  - DatePicker (MUI x-date-pickers + dayjs) integrated in StudentCreate, StudentDetail, and SchoolCycleManagement
 
 **Dependencies:** Step 6 (students reference groups)
 
@@ -394,7 +393,7 @@ graph TD
     S4 --> S5
 
     S5 --> S6[Step 6: Groups ✅]
-    S6 --> S7[Step 7: Students & Guardians]
+    S6 --> S7[Step 7: Students & Guardians ✅]
 
     S3 --> S8[Step 8: Payment Concepts]
     S4 --> S8
@@ -431,9 +430,9 @@ graph TD
 | 2 ✅ | `npx prisma migrate dev` creates 14 tables; `npx prisma db seed` inserts default data |
 | 3 ✅ | `POST /api/auth/login` returns JWT; protected endpoints reject unauthenticated requests |
 | 4 ✅ | Login page works; authenticated users see sidebar layout; navigation routes render |
-| 5 | Create/edit/activate school cycles via UI |
-| 6 | Create groups, see student counts, filter by cycle |
-| 7 | Create students with guardians, search, view detail, duplicate guardian detection works |
+| 5 ✅ | Create/edit/activate school cycles via UI |
+| 6 ✅ | Create groups, see student counts, filter by cycle |
+| 7 ✅ | Create students with guardians, search, view detail, duplicate guardian detection works |
 | 8 | Create/edit payment concepts via UI |
 | 9 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
 | 10 | Create uniform orders, mark as delivered, verify catalog CRUD |

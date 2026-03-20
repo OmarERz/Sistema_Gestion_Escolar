@@ -16,6 +16,7 @@
 | **Validation** | Zod | Single validation library used on both frontend (forms) and backend (request validation). Schema-first approach with TypeScript inference. |
 | **PDF Generation** | pdfkit | Programmatic PDF creation without HTML templating overhead. Zero native dependencies. Produces professional documents. |
 | **Auth** | JWT (jsonwebtoken + bcryptjs) | Stateless authentication suitable for a single-admin Phase 1 setup. Simple to implement and extend later for multi-user support. |
+| **Date Picker** | MUI x-date-pickers v8 + dayjs | Calendar popup for date inputs. AdapterDayjs with `es` locale provides Spanish month/day names. Used in StudentCreate, StudentDetail, and SchoolCycleManagement. |
 | **Charts** | Recharts | Composable chart library built on React and D3. Simple API for bar, line, and pie charts needed in the dashboard. |
 | **HTTP Client** | Axios | Feature-rich HTTP client with interceptors for JWT attachment and error handling. Better DX than native fetch for complex scenarios. |
 | **Testing** | Vitest | Native test framework for Vite/TypeScript projects. Used for backend integration tests on critical business logic (debt calculation, payment formulas, recurring rules). |
@@ -81,6 +82,7 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 - **Server-side sorting**: All list endpoints accept `?sortBy=field&sortDir=asc|desc`. Sort is validated against an allowlist per endpoint, applied via Prisma `orderBy`, and works across all pages.
 - **Pagination**: All list endpoints accept `?page=1&limit=20`. Default 20 rows per page.
 - **Design principles**: Font smoothing (antialiased), tabular-nums on numbers, text-wrap balance on headings, scale-on-press (0.96) for buttons, min 40px hit areas.
+- **`noGroup` filter**: List endpoints that reference groups accept `?noGroup=true` to return records with `groupId IS NULL`. Takes precedence over `groupId` param. Exposed in StudentList as "Sin grupo" option in the group dropdown.
 
 ---
 

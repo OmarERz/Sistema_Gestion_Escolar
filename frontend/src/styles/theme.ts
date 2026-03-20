@@ -173,7 +173,8 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           padding: 0,
-          '&:last-child': {
+          // :where() reduces specificity to (0,1,0) so sx can override padding-bottom
+          '&:where(:last-child)': {
             paddingBottom: 0,
           },
         },

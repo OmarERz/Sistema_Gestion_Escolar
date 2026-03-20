@@ -12,11 +12,13 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  Dashboard,
+  Home,
   People,
+  Person,
   Groups,
   PersonRemove,
   Payment,
+  TrendingUp,
   Receipt,
   Checkroom,
   Settings,
@@ -128,27 +130,33 @@ export default function Sidebar() {
       <Divider />
 
       <List component="nav" sx={{ px: 1, pt: 1 }}>
-        {/* Home / Dashboard */}
+        {/* Home */}
         <ListItemButton
           selected={isActive('/')}
           onClick={() => navigate('/')}
           sx={{ borderRadius: 1, mb: 0.5 }}
         >
           <ListItemIcon>
-            <Dashboard />
+            <Home />
           </ListItemIcon>
-          <ListItemText primary="Dashboard" />
+          <ListItemText primary="Home" />
         </ListItemButton>
 
         {/* Sections */}
-        {navSections.map((section) => (
+        {navSections.map((section) => {
+          const sectionIcons: Record<string, React.ReactNode> = {
+            'Matrícula': <Person sx={{ fontSize: 20, color: 'text.secondary' }} />,
+            'Finanzas': <TrendingUp sx={{ fontSize: 20, color: 'text.secondary' }} />,
+            'Configuración': <Settings sx={{ fontSize: 20, color: 'text.secondary' }} />,
+          };
+          return (
           <Box key={section.title} sx={{ mt: 0.5 }}>
             <ListItemButton
               onClick={() => toggleSection(section.title)}
               sx={{ borderRadius: 1 }}
             >
               <ListItemIcon>
-                <Settings sx={{ fontSize: 20, color: 'text.secondary' }} />
+                {sectionIcons[section.title]}
               </ListItemIcon>
               <ListItemText
                 primary={section.title}
@@ -182,7 +190,8 @@ export default function Sidebar() {
               </List>
             </Collapse>
           </Box>
-        ))}
+        );
+        })}
       </List>
     </Drawer>
   );

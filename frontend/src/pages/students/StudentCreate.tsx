@@ -14,6 +14,11 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -21,6 +26,7 @@ import {
   Delete,
   ExpandMore,
   ExpandLess,
+  LinkOff,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -29,7 +35,8 @@ import { useSchoolCycles } from '@/hooks/useSchoolCycles';
 import { useGroups } from '@/hooks/useGroups';
 import { useCreateStudent } from '@/hooks/useStudents';
 import { useCheckDuplicateGuardian } from '@/hooks/useGuardians';
-import type { StudentFormData, GuardianFormData, FiscalDataFormData } from '@/types/student';
+import { getGuardianById } from '@/api/guardians';
+import type { StudentFormData, GuardianFormData, FiscalDataFormData, Guardian } from '@/types/student';
 
 const LEVEL_LABELS: Record<string, string> = {
   kinder: 'Kinder',
@@ -76,15 +83,22 @@ function createEmptyGuardian(isPrimary: boolean): GuardianFormData {
   };
 }
 
+/** Sx applied to read-only TextFields to signal non-editability with muted text */
+const READ_ONLY_INPUT_SX = {
+  '& .MuiInputBase-input': { color: 'text.secondary' },
+} as const;
+
 /** Sub-component for guardian duplicate check */
 function GuardianDuplicateAlert({
   phone,
   phoneSecondary,
   email,
+  onLink,
 }: {
   phone: string;
   phoneSecondary: string;
   email: string;
+  onLink: (guardianId: number) => void;
 }) {
   const { data } = useCheckDuplicateGuardian(
     phone || undefined,
@@ -98,12 +112,15 @@ function GuardianDuplicateAlert({
     <Alert severity="warning" sx={{ mt: 1 }}>
       Se encontraron tutores similares:{' '}
       {data.guardians.map((g) => (
-        <Chip
-          key={g.id}
-          label={`${g.firstName} ${g.lastName1} (${g.phone})`}
-          size="small"
-          sx={{ mr: 0.5 }}
-        />
+        <Box key={g.id} component="span" sx={{ display: 'inline-flex', alignItems: 'center', mr: 1, mb: 0.5 }}>
+          <Chip
+            label={`${g.firstName} ${g.lastName1} (${g.phone})`}
+            size="small"
+          />
+          <Button size="small" onClick={() => onLink(g.id)} sx={{ ml: 0.5, minWidth: 'auto', textTransform: 'none' }}>
+            Vincular
+          </Button>
+        </Box>
       ))}
     </Alert>
   );
@@ -132,6 +149,15 @@ export default function StudentCreate() {
   const [dupCheckValues, setDupCheckValues] = useState<
     Record<number, { phone: string; phoneSecondary: string; email: string }>
   >({});
+
+  // Linked guardian state
+  const [linkedGuardians, setLinkedGuardians] = useState<Record<number, Guardian>>({});
+  const [previewDialog, setPreviewDialog] = useState<{
+    guardianIndex: number;
+    guardian: Guardian;
+  } | null>(null);
+  const [unlinkConfirm, setUnlinkConfirm] = useState<number | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Form error
   const [formError, setFormError] = useState('');
@@ -173,23 +199,24 @@ export default function StudentCreate() {
     if (guardians.length <= 1) return;
     setGuardians((prev) => {
       const updated = prev.filter((_, i) => i !== index);
-      // Ensure at least one is primary
       if (!updated.some((g) => g.isPrimary) && updated.length > 0) {
         updated[0] = { ...updated[0], isPrimary: true };
       }
       return updated;
     });
-    // Clean up fiscal expansion and dup check
-    setExpandedFiscal((prev) => {
-      const next = { ...prev };
-      delete next[index];
+    // Clean up and shift indices for keyed state
+    const shiftIndices = <T,>(prev: Record<number, T>): Record<number, T> => {
+      const next: Record<number, T> = {};
+      for (const [key, value] of Object.entries(prev)) {
+        const k = Number(key);
+        if (k < index) next[k] = value;
+        else if (k > index) next[k - 1] = value;
+      }
       return next;
-    });
-    setDupCheckValues((prev) => {
-      const next = { ...prev };
-      delete next[index];
-      return next;
-    });
+    };
+    setExpandedFiscal(shiftIndices);
+    setDupCheckValues(shiftIndices);
+    setLinkedGuardians(shiftIndices);
   };
 
   const handlePrimaryToggle = (index: number) => {
@@ -235,6 +262,86 @@ export default function StudentCreate() {
         email: g.email ?? '',
       },
     }));
+  };
+
+  // Fetch full guardian data and open preview dialog
+  const handleLinkClick = async (guardianIndex: number, guardianId: number) => {
+    setPreviewLoading(true);
+    try {
+      const response = await getGuardianById(guardianId);
+      setPreviewDialog({ guardianIndex, guardian: response.data });
+    } catch {
+      enqueueSnackbar('Error al obtener datos del tutor', { variant: 'error' });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  // Fill form fields with linked guardian data (read-only)
+  const handleConfirmLink = () => {
+    if (!previewDialog) return;
+    const { guardianIndex, guardian } = previewDialog;
+    setGuardians((prev) => {
+      const updated = [...prev];
+      updated[guardianIndex] = {
+        ...updated[guardianIndex],
+        id: guardian.id,
+        firstName: guardian.firstName,
+        lastName1: guardian.lastName1,
+        lastName2: guardian.lastName2 ?? '',
+        email: guardian.email ?? '',
+        phone: guardian.phone,
+        phoneSecondary: guardian.phoneSecondary ?? '',
+        address: guardian.address ?? '',
+        fiscalData: guardian.fiscalData
+          ? {
+              rfc: guardian.fiscalData.rfc,
+              businessName: guardian.fiscalData.businessName,
+              cfdiUsage: guardian.fiscalData.cfdiUsage,
+              fiscalRegime: guardian.fiscalData.fiscalRegime ?? '',
+              fiscalAddressStreet: guardian.fiscalData.fiscalAddressStreet,
+              fiscalAddressExtNumber: guardian.fiscalData.fiscalAddressExtNumber ?? '',
+              fiscalAddressIntNumber: guardian.fiscalData.fiscalAddressIntNumber ?? '',
+              fiscalAddressNeighborhood: guardian.fiscalData.fiscalAddressNeighborhood ?? '',
+              fiscalAddressCity: guardian.fiscalData.fiscalAddressCity,
+              fiscalAddressState: guardian.fiscalData.fiscalAddressState,
+              fiscalAddressZip: guardian.fiscalData.fiscalAddressZip,
+            }
+          : null,
+      };
+      return updated;
+    });
+    setLinkedGuardians((prev) => ({ ...prev, [guardianIndex]: guardian }));
+    setDupCheckValues((prev) => {
+      const next = { ...prev };
+      delete next[guardianIndex];
+      return next;
+    });
+    if (guardian.fiscalData) {
+      setExpandedFiscal((prev) => ({ ...prev, [guardianIndex]: true }));
+    }
+    setPreviewDialog(null);
+  };
+
+  // Clear linked guardian and reset form fields
+  const handleUnlink = (guardianIndex: number) => {
+    setGuardians((prev) => {
+      const updated = [...prev];
+      const keepPrimary = updated[guardianIndex].isPrimary;
+      updated[guardianIndex] = createEmptyGuardian(keepPrimary);
+      return updated;
+    });
+    setLinkedGuardians((prev) => {
+      const next = { ...prev };
+      delete next[guardianIndex];
+      return next;
+    });
+    setExpandedFiscal((prev) => {
+      const next = { ...prev };
+      delete next[guardianIndex];
+      return next;
+    });
+    setUnlinkConfirm(null);
   };
 
   // Validate form
@@ -458,234 +565,229 @@ export default function StudentCreate() {
         </Button>
       </Box>
 
-      {guardians.map((guardian, index) => (
-        <Card key={index} sx={{ mb: 2 }}>
-          <CardContent sx={{ p: 3 }}>
-            {/* Guardian header */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="subtitle1" fontWeight={600}>
-                  Tutor {index + 1}
-                </Typography>
-                {guardian.isPrimary && (
-                  <Chip label="Principal" color="primary" size="small" />
-                )}
+      {guardians.map((guardian, index) => {
+        const isLinked = !!linkedGuardians[index];
+        return (
+          <Card key={index} sx={{ mb: 2 }}>
+            <CardContent sx={{ p: 3 }}>
+              {/* Guardian header */}
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle1" fontWeight={600}>
+                    Tutor {index + 1}
+                  </Typography>
+                  {guardian.isPrimary && (
+                    <Chip label="Principal" color="primary" size="small" />
+                  )}
+                </Box>
+                <Box>
+                  {!guardian.isPrimary && (
+                    <Button size="small" onClick={() => handlePrimaryToggle(index)}>
+                      Marcar como principal
+                    </Button>
+                  )}
+                  {guardians.length > 1 && (
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={() => removeGuardian(index)}
+                      title="Eliminar tutor"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
               </Box>
-              <Box>
-                {!guardian.isPrimary && (
-                  <Button size="small" onClick={() => handlePrimaryToggle(index)}>
-                    Marcar como principal
-                  </Button>
-                )}
-                {guardians.length > 1 && (
-                  <IconButton
+
+              {/* Guardian fields */}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+                <TextField
+                  label="Nombre(s)"
+                  placeholder="ej. María"
+                  value={guardian.firstName}
+                  onChange={(e) => updateGuardian(index, 'firstName', e.target.value)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  required
+                  fullWidth
+                />
+                <TextField
+                  label="Apellido Paterno"
+                  placeholder="ej. García"
+                  value={guardian.lastName1}
+                  onChange={(e) => updateGuardian(index, 'lastName1', e.target.value)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  required
+                  fullWidth
+                />
+                <TextField
+                  label="Apellido Materno"
+                  placeholder="ej. López"
+                  value={guardian.lastName2 ?? ''}
+                  onChange={(e) => updateGuardian(index, 'lastName2', e.target.value)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  fullWidth
+                />
+                <TextField
+                  label="Teléfono"
+                  placeholder="ej. 6141234567"
+                  value={guardian.phone}
+                  onChange={(e) => updateGuardian(index, 'phone', e.target.value)}
+                  onBlur={() => handleDupCheckBlur(index)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  required
+                  fullWidth
+                />
+                <TextField
+                  label="Teléfono Secundario"
+                  placeholder="ej. 6149876543"
+                  value={guardian.phoneSecondary ?? ''}
+                  onChange={(e) => updateGuardian(index, 'phoneSecondary', e.target.value)}
+                  onBlur={() => handleDupCheckBlur(index)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  fullWidth
+                />
+                <TextField
+                  label="Correo Electrónico"
+                  placeholder="ej. maria@gmail.com"
+                  value={guardian.email ?? ''}
+                  onChange={(e) => updateGuardian(index, 'email', e.target.value)}
+                  onBlur={() => handleDupCheckBlur(index)}
+                  InputProps={{ readOnly: isLinked }}
+                  sx={isLinked ? READ_ONLY_INPUT_SX : undefined}
+                  fullWidth
+                />
+                <TextField
+                  select
+                  label="Relación"
+                  value={guardian.relationship}
+                  onChange={(e) => updateGuardian(index, 'relationship', e.target.value)}
+                  required
+                  fullWidth
+                >
+                  {RELATIONSHIP_OPTIONS.map((rel) => (
+                    <MenuItem key={rel} value={rel}>
+                      {rel}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  label="Dirección"
+                  placeholder="ej. Calle Reforma #123, Col. Centro"
+                  value={guardian.address ?? ''}
+                  onChange={(e) => updateGuardian(index, 'address', e.target.value)}
+                  InputProps={{ readOnly: isLinked }}
+                  fullWidth
+                  sx={{ gridColumn: { md: 'span 2' }, ...(isLinked && READ_ONLY_INPUT_SX) }}
+                />
+              </Box>
+
+              {/* Linked guardian banner OR duplicate check alert */}
+              {isLinked ? (
+                <Alert
+                  severity="info"
+                  sx={{ mt: 2 }}
+                  action={
+                    <Button
+                      color="error"
+                      size="small"
+                      startIcon={<LinkOff />}
+                      onClick={() => setUnlinkConfirm(index)}
+                    >
+                      Desvincular
+                    </Button>
+                  }
+                >
+                  Se está vinculando a un tutor existente
+                </Alert>
+              ) : (
+                dupCheckValues[index] && (
+                  <GuardianDuplicateAlert
+                    phone={dupCheckValues[index].phone}
+                    phoneSecondary={dupCheckValues[index].phoneSecondary}
+                    email={dupCheckValues[index].email}
+                    onLink={(guardianId) => handleLinkClick(index, guardianId)}
+                  />
+                )
+              )}
+
+              {/* Fiscal data section */}
+              {isLinked ? (
+                guardian.fiscalData && (
+                  <>
+                    <Divider sx={{ my: 2 }} />
+                    <Typography variant="body2" fontWeight={600} sx={{ mb: 2 }}>
+                      Datos Fiscales
+                    </Typography>
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
+                      <TextField label="RFC" value={guardian.fiscalData.rfc} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Razón Social" value={guardian.fiscalData.businessName} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Uso de CFDI" value={guardian.fiscalData.cfdiUsage} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Régimen Fiscal" value={guardian.fiscalData.fiscalRegime ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Calle" value={guardian.fiscalData.fiscalAddressStreet} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="No. Exterior" value={guardian.fiscalData.fiscalAddressExtNumber ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="No. Interior" value={guardian.fiscalData.fiscalAddressIntNumber ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Colonia" value={guardian.fiscalData.fiscalAddressNeighborhood ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Ciudad" value={guardian.fiscalData.fiscalAddressCity} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Estado" value={guardian.fiscalData.fiscalAddressState} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                      <TextField label="Código Postal" value={guardian.fiscalData.fiscalAddressZip} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                    </Box>
+                  </>
+                )
+              ) : (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Button
                     size="small"
-                    color="error"
-                    onClick={() => removeGuardian(index)}
-                    title="Eliminar tutor"
+                    onClick={() => toggleFiscal(index)}
+                    endIcon={expandedFiscal[index] ? <ExpandLess /> : <ExpandMore />}
                   >
-                    <Delete fontSize="small" />
-                  </IconButton>
-                )}
-              </Box>
-            </Box>
+                    Datos Fiscales {expandedFiscal[index] ? '' : '(opcional)'}
+                  </Button>
 
-            {/* Guardian fields */}
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' }, gap: 2 }}>
-              <TextField
-                label="Nombre(s)"
-                placeholder="ej. María"
-                value={guardian.firstName}
-                onChange={(e) => updateGuardian(index, 'firstName', e.target.value)}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Apellido Paterno"
-                placeholder="ej. García"
-                value={guardian.lastName1}
-                onChange={(e) => updateGuardian(index, 'lastName1', e.target.value)}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Apellido Materno"
-                placeholder="ej. López"
-                value={guardian.lastName2 ?? ''}
-                onChange={(e) => updateGuardian(index, 'lastName2', e.target.value)}
-                fullWidth
-              />
-              <TextField
-                label="Teléfono"
-                placeholder="ej. 6141234567"
-                value={guardian.phone}
-                onChange={(e) => updateGuardian(index, 'phone', e.target.value)}
-                onBlur={() => handleDupCheckBlur(index)}
-                required
-                fullWidth
-              />
-              <TextField
-                label="Teléfono Secundario"
-                placeholder="ej. 6149876543"
-                value={guardian.phoneSecondary ?? ''}
-                onChange={(e) => updateGuardian(index, 'phoneSecondary', e.target.value)}
-                onBlur={() => handleDupCheckBlur(index)}
-                fullWidth
-              />
-              <TextField
-                label="Correo Electrónico"
-                placeholder="ej. maria@gmail.com"
-                value={guardian.email ?? ''}
-                onChange={(e) => updateGuardian(index, 'email', e.target.value)}
-                onBlur={() => handleDupCheckBlur(index)}
-                fullWidth
-              />
-              <TextField
-                select
-                label="Relación"
-                value={guardian.relationship}
-                onChange={(e) => updateGuardian(index, 'relationship', e.target.value)}
-                required
-                fullWidth
-              >
-                {RELATIONSHIP_OPTIONS.map((rel) => (
-                  <MenuItem key={rel} value={rel}>
-                    {rel}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                label="Dirección"
-                placeholder="ej. Calle Reforma #123, Col. Centro"
-                value={guardian.address ?? ''}
-                onChange={(e) => updateGuardian(index, 'address', e.target.value)}
-                fullWidth
-                sx={{ gridColumn: { md: 'span 2' } }}
-              />
-            </Box>
-
-            {/* Duplicate check alert */}
-            {dupCheckValues[index] && (
-              <GuardianDuplicateAlert
-                phone={dupCheckValues[index].phone}
-                phoneSecondary={dupCheckValues[index].phoneSecondary}
-                email={dupCheckValues[index].email}
-              />
-            )}
-
-            {/* Fiscal data toggle */}
-            <Divider sx={{ my: 2 }} />
-            <Button
-              size="small"
-              onClick={() => toggleFiscal(index)}
-              endIcon={expandedFiscal[index] ? <ExpandLess /> : <ExpandMore />}
-            >
-              Datos Fiscales {expandedFiscal[index] ? '' : '(opcional)'}
-            </Button>
-
-            <Collapse in={expandedFiscal[index]}>
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
-                  gap: 2,
-                  mt: 2,
-                }}
-              >
-                <TextField
-                  label="RFC"
-                  placeholder="ej. GALO850101AB1"
-                  value={guardian.fiscalData?.rfc ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'rfc', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Razón Social"
-                  placeholder="ej. María García López"
-                  value={guardian.fiscalData?.businessName ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'businessName', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Uso de CFDI"
-                  placeholder="ej. D10 Pagos por servicios educativos"
-                  value={guardian.fiscalData?.cfdiUsage ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'cfdiUsage', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Régimen Fiscal"
-                  placeholder="ej. 612 Personas Físicas"
-                  value={guardian.fiscalData?.fiscalRegime ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalRegime', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Calle"
-                  placeholder="ej. Av. Reforma"
-                  value={guardian.fiscalData?.fiscalAddressStreet ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressStreet', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="No. Exterior"
-                  placeholder="ej. 123"
-                  value={guardian.fiscalData?.fiscalAddressExtNumber ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressExtNumber', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="No. Interior"
-                  placeholder="ej. A"
-                  value={guardian.fiscalData?.fiscalAddressIntNumber ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressIntNumber', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Colonia"
-                  placeholder="ej. Centro"
-                  value={guardian.fiscalData?.fiscalAddressNeighborhood ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressNeighborhood', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Ciudad"
-                  placeholder="ej. Chihuahua"
-                  value={guardian.fiscalData?.fiscalAddressCity ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressCity', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Estado"
-                  placeholder="ej. Chihuahua"
-                  value={guardian.fiscalData?.fiscalAddressState ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressState', e.target.value)}
-                  fullWidth
-                />
-                <TextField
-                  label="Código Postal"
-                  placeholder="ej. 31000"
-                  value={guardian.fiscalData?.fiscalAddressZip ?? ''}
-                  onChange={(e) => updateFiscalField(index, 'fiscalAddressZip', e.target.value)}
-                  fullWidth
-                />
-              </Box>
-              {/* Option to remove fiscal data */}
-              <Button
-                size="small"
-                color="error"
-                sx={{ mt: 1 }}
-                onClick={() => {
-                  updateGuardian(index, 'fiscalData', null);
-                  setExpandedFiscal((prev) => ({ ...prev, [index]: false }));
-                }}
-              >
-                Quitar datos fiscales
-              </Button>
-            </Collapse>
-          </CardContent>
-        </Card>
-      ))}
+                  <Collapse in={expandedFiscal[index]}>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: '1fr 1fr 1fr' },
+                        gap: 2,
+                        mt: 2,
+                      }}
+                    >
+                      <TextField label="RFC" placeholder="ej. GALO850101AB1" value={guardian.fiscalData?.rfc ?? ''} onChange={(e) => updateFiscalField(index, 'rfc', e.target.value)} fullWidth />
+                      <TextField label="Razón Social" placeholder="ej. María García López" value={guardian.fiscalData?.businessName ?? ''} onChange={(e) => updateFiscalField(index, 'businessName', e.target.value)} fullWidth />
+                      <TextField label="Uso de CFDI" placeholder="ej. D10 Pagos por servicios educativos" value={guardian.fiscalData?.cfdiUsage ?? ''} onChange={(e) => updateFiscalField(index, 'cfdiUsage', e.target.value)} fullWidth />
+                      <TextField label="Régimen Fiscal" placeholder="ej. 612 Personas Físicas" value={guardian.fiscalData?.fiscalRegime ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalRegime', e.target.value)} fullWidth />
+                      <TextField label="Calle" placeholder="ej. Av. Reforma" value={guardian.fiscalData?.fiscalAddressStreet ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressStreet', e.target.value)} fullWidth />
+                      <TextField label="No. Exterior" placeholder="ej. 123" value={guardian.fiscalData?.fiscalAddressExtNumber ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressExtNumber', e.target.value)} fullWidth />
+                      <TextField label="No. Interior" placeholder="ej. A" value={guardian.fiscalData?.fiscalAddressIntNumber ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressIntNumber', e.target.value)} fullWidth />
+                      <TextField label="Colonia" placeholder="ej. Centro" value={guardian.fiscalData?.fiscalAddressNeighborhood ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressNeighborhood', e.target.value)} fullWidth />
+                      <TextField label="Ciudad" placeholder="ej. Chihuahua" value={guardian.fiscalData?.fiscalAddressCity ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressCity', e.target.value)} fullWidth />
+                      <TextField label="Estado" placeholder="ej. Chihuahua" value={guardian.fiscalData?.fiscalAddressState ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressState', e.target.value)} fullWidth />
+                      <TextField label="Código Postal" placeholder="ej. 31000" value={guardian.fiscalData?.fiscalAddressZip ?? ''} onChange={(e) => updateFiscalField(index, 'fiscalAddressZip', e.target.value)} fullWidth />
+                    </Box>
+                    <Button
+                      size="small"
+                      color="error"
+                      sx={{ mt: 1 }}
+                      onClick={() => {
+                        updateGuardian(index, 'fiscalData', null);
+                        setExpandedFiscal((prev) => ({ ...prev, [index]: false }));
+                      }}
+                    >
+                      Quitar datos fiscales
+                    </Button>
+                  </Collapse>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })}
 
       {/* Submit */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 3 }}>
@@ -705,6 +807,72 @@ export default function StudentCreate() {
           )}
         </Button>
       </Box>
+
+      {/* Guardian preview dialog */}
+      <Dialog open={!!previewDialog} onClose={() => setPreviewDialog(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Datos del Tutor Existente</DialogTitle>
+        <DialogContent dividers>
+          {previewDialog && (
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: 2 }}>
+              <TextField label="Nombre(s)" value={previewDialog.guardian.firstName} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Apellido Paterno" value={previewDialog.guardian.lastName1} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Apellido Materno" value={previewDialog.guardian.lastName2 ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Teléfono" value={previewDialog.guardian.phone} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Teléfono Secundario" value={previewDialog.guardian.phoneSecondary ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Correo Electrónico" value={previewDialog.guardian.email ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+              <TextField label="Dirección" value={previewDialog.guardian.address ?? ''} InputProps={{ readOnly: true }} sx={{ gridColumn: { md: 'span 2' }, ...READ_ONLY_INPUT_SX }} fullWidth />
+
+              {previewDialog.guardian.fiscalData && (
+                <>
+                  <Divider sx={{ gridColumn: { md: 'span 2' }, my: 1 }} />
+                  <Typography variant="subtitle2" sx={{ gridColumn: { md: 'span 2' } }}>
+                    Datos Fiscales
+                  </Typography>
+                  <TextField label="RFC" value={previewDialog.guardian.fiscalData.rfc} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Razón Social" value={previewDialog.guardian.fiscalData.businessName} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Uso de CFDI" value={previewDialog.guardian.fiscalData.cfdiUsage} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Régimen Fiscal" value={previewDialog.guardian.fiscalData.fiscalRegime ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Calle" value={previewDialog.guardian.fiscalData.fiscalAddressStreet} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="No. Exterior" value={previewDialog.guardian.fiscalData.fiscalAddressExtNumber ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="No. Interior" value={previewDialog.guardian.fiscalData.fiscalAddressIntNumber ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Colonia" value={previewDialog.guardian.fiscalData.fiscalAddressNeighborhood ?? ''} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Ciudad" value={previewDialog.guardian.fiscalData.fiscalAddressCity} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Estado" value={previewDialog.guardian.fiscalData.fiscalAddressState} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                  <TextField label="Código Postal" value={previewDialog.guardian.fiscalData.fiscalAddressZip} InputProps={{ readOnly: true }} sx={READ_ONLY_INPUT_SX} fullWidth />
+                </>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPreviewDialog(null)}>Cancelar</Button>
+          <Button variant="contained" onClick={handleConfirmLink}>
+            Vincular
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unlink confirmation dialog */}
+      <Dialog open={unlinkConfirm !== null} onClose={() => setUnlinkConfirm(null)}>
+        <DialogTitle>Confirmar Desvinculación</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            ¿Está seguro de desvincular este tutor? Los datos del formulario se borrarán y podrá ingresar un nuevo tutor.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnlinkConfirm(null)}>Cancelar</Button>
+          <Button color="error" variant="contained" onClick={() => handleUnlink(unlinkConfirm!)}>
+            Desvincular
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Loading overlay for guardian fetch */}
+      <Dialog open={previewLoading} PaperProps={{ sx: { p: 3, textAlign: 'center' } }}>
+        <CircularProgress size={32} />
+        <Typography sx={{ mt: 1 }}>Cargando datos del tutor...</Typography>
+      </Dialog>
     </Box>
   );
 }
