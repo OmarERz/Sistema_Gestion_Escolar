@@ -14,7 +14,7 @@
 | **ORM** | Prisma | Type-safe database client auto-generated from schema. Declarative migration system. Excellent MySQL support and developer experience. |
 | **Database** | MySQL 8 | Robust relational database well-suited for structured educational/financial data. Widely supported with excellent tooling. |
 | **Validation** | Zod | Single validation library used on both frontend (forms) and backend (request validation). Schema-first approach with TypeScript inference. |
-| **PDF Generation** | pdfkit | Programmatic PDF creation without HTML templating overhead. Zero native dependencies. Produces professional documents. |
+| **Excel Reports** | TBD | Excel export for reports. Library and scope to be defined once requirements are finalized. |
 | **Auth** | JWT (jsonwebtoken + bcryptjs) | Stateless authentication suitable for a single-admin Phase 1 setup. Simple to implement and extend later for multi-user support. |
 | **Date Picker** | MUI x-date-pickers v8 + dayjs | Calendar popup for date inputs. AdapterDayjs with `es` locale provides Spanish month/day names. Used in StudentCreate, StudentDetail, and SchoolCycleManagement. |
 | **Charts** | Recharts | Composable chart library built on React and D3. Simple API for bar, line, and pie charts needed in the dashboard. |
@@ -48,7 +48,7 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 │                                │ Services          │        │
 │                                │  - Debt calc      │        │
 │                                │  - Payment gen    │        │
-│                                │  - PDF reports    │        │
+│                                │  - Excel reports  │        │
 │                                │  - Overdue check  │        │
 │                                └──────────────────┘        │
 │                                         │                   │
@@ -73,7 +73,7 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 | Layer | Components | Responsibility |
 |-------|-----------|----------------|
 | **Presentation** | Routes, Controllers, Middleware | Parse HTTP requests, authenticate, validate input, format responses. No business logic. |
-| **Business Logic** | Services | All business rules: debt calculation, payment generation, withdrawal processing, PDF generation, overdue checks. |
+| **Business Logic** | Services | All business rules: debt calculation, payment generation, withdrawal processing, overdue checks. |
 | **Data Access** | Prisma Client | Type-safe database queries, migrations, seeding. Auto-generated from `schema.prisma`. |
 
 ### UI Conventions
@@ -83,6 +83,8 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 - **Pagination**: All list endpoints accept `?page=1&limit=20`. Default 20 rows per page.
 - **Design principles**: Font smoothing (antialiased), tabular-nums on numbers, text-wrap balance on headings, scale-on-press (0.96) for buttons, min 40px hit areas.
 - **`noGroup` filter**: List endpoints that reference groups accept `?noGroup=true` to return records with `groupId IS NULL`. Takes precedence over `groupId` param. Exposed in StudentList as "Sin grupo" option in the group dropdown.
+- **Guardian active/inactive status**: Computed (not stored). A guardian is "active" if they have at least one linked student with `status='active'`. Otherwise "inactive". Filterable via `?status=active|inactive` on `GET /api/guardians`.
+- **Default status filters**: StudentList and GuardianList default to showing only active records. Inactive records are accessible via the status filter dropdown.
 
 ---
 
@@ -111,7 +113,7 @@ graph TB
         Controllers["Controllers<br/>student, payment, group,<br/>guardian, uniform, withdrawal,<br/>report, auth"]
         Services["Services<br/>student, payment, debt,<br/>guardian, group, uniform,<br/>withdrawal, report, auth,<br/>recurringPayment"]
         Schemas["Schemas (Zod)<br/>Request validation for<br/>all endpoints"]
-        Utils["Utils<br/>pdfGenerator, apiResponse,<br/>logger"]
+        Utils["Utils<br/>apiResponse,<br/>logger"]
 
         Routes --> Middleware
         Middleware --> Controllers

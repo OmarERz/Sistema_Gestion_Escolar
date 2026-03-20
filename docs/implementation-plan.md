@@ -4,7 +4,7 @@
 
 ## Overview
 
-Build Phase 1 of a school management system covering: student/guardian management, group management, payment registration with recurring rules, uniforms, student withdrawals, PDF reports, and a dashboard with charts.
+Build Phase 1 of a school management system covering: student/guardian management, group management, payment registration with recurring rules, uniforms, student withdrawals, Excel reports (TBD), and a dashboard with charts.
 
 **Key constraints:**
 - Development: Windows + local MySQL
@@ -27,7 +27,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | ORM | Prisma |
 | Database | MySQL 8 |
 | Validation | Zod |
-| PDF | pdfkit |
+| Excel Reports | TBD (requirements pending) |
 | Auth | JWT + bcryptjs |
 | Testing | Vitest (backend integration tests for critical business logic) |
 
@@ -94,14 +94,15 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | GET | `/api/students/:id/debt` | Detailed debt breakdown |
 | GET | `/api/students/:id/academic-history` | Academic history |
 
-### Guardians (6 endpoints)
+### Guardians (7 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/guardians` | List guardians (search) |
+| GET | `/api/guardians` | List guardians (search, status filter: active/inactive) |
 | POST | `/api/guardians` | Create guardian |
 | GET | `/api/guardians/:id` | Guardian detail |
 | PUT | `/api/guardians/:id` | Update guardian |
 | POST | `/api/guardians/:id/fiscal-data` | Create/update fiscal data |
+| DELETE | `/api/guardians/:id/students/:studentId` | Unlink student from guardian (guard: min 1 guardian per student) |
 | GET | `/api/guardians/check-duplicate` | Check email/phone existence |
 
 ### Payment Concepts (3 endpoints)
@@ -157,12 +158,10 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | GET | `/api/withdrawals` | List all withdrawals |
 | POST | `/api/withdrawals` | Process student withdrawal |
 
-### Reports (1 endpoint)
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/reports/student/:id/pdf` | Generate and stream student PDF report |
+### Reports (TBD)
+_Excel report endpoints to be defined once export requirements are finalized._
 
-**Total: ~49 endpoints**
+**Total: ~49 endpoints + reports TBD**
 
 ---
 
@@ -172,9 +171,11 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 |-------|------|-----------------|-------------|
 | `/login` | Login | — | Username + password authentication |
 | `/` | Dashboard | Home | Metric cards + financial charts (recharts) |
-| `/alumnos` | StudentList | Matrícula | Searchable table with debt badge and status filter |
+| `/alumnos` | StudentList | Matrícula | Searchable table with debt badge; status filter (default: active only) |
 | `/alumnos/nuevo` | StudentCreate | Matrícula | Multi-section form: student + up to 4 guardians + fiscal data |
-| `/alumnos/:id` | StudentDetail | Matrícula | Tabbed view: Info, Pagos, Uniformes, Historial Académico; pending payments summary; PDF button |
+| `/alumnos/:id` | StudentDetail | Matrícula | Tabbed view: Info, Pagos, Uniformes, Historial Académico; pending payments summary |
+| `/tutores` | GuardianList | Matrícula | Searchable table with active/inactive badge; status filter (default: active) |
+| `/tutores/:id` | GuardianDetail | Matrícula | Tabbed view: Info (editable), Datos Fiscales (editable), Alumnos Vinculados |
 | `/grupos` | GroupList | Matrícula | Groups organized by cycle with student count |
 | `/bajas` | WithdrawalHistory | Matrícula | List of withdrawn students with details |
 | `/bajas/nueva` | WithdrawalForm | Matrícula | Student search → reason → confirmation → process |
@@ -187,7 +188,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | `/configuracion/catalogo-uniformes` | UniformCatalog | Configuración | CRUD for uniform catalog items and prices |
 | `/configuracion/metodos-pago` | PaymentMethodManagement | Configuración | CRUD for payment methods (Efectivo, Transferencia, Tarjeta) |
 
-**Total: 16 pages**
+**Total: 18 pages**
 
 ---
 
@@ -294,13 +295,25 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Step 6 (students reference groups)
 
-### Step 8: Payment Concepts & Methods Module
+### Step 8: Guardians Module
+- **Backend:**
+  - Extend `GET /api/guardians` with `?status=active|inactive` filter (computed: active = has at least one student with `status='active'`)
+  - Add `DELETE /api/guardians/:id/students/:studentId` to unlink a student (guard: student must have more than 1 guardian)
+- **Frontend:**
+  - GuardianList (`/tutores`): paginated searchable table (name, phone, email, linked students), active/inactive badge, status filter (default: active), server-side sorting
+  - GuardianDetail (`/tutores/:id`): tabbed view (Info with editable fields, Datos Fiscales with editable fields, Alumnos Vinculados with unlink option)
+  - Sidebar: add "Tutores" entry after "Alumnos" in Matrícula section
+  - StudentList: change status filter default to show only active students
+
+**Dependencies:** Step 7 (guardians reference students)
+
+### Step 9: Payment Concepts & Methods Module
 - **Backend:** CRUD endpoints for payment_concepts and payment_methods
 - **Frontend:** PaymentConceptManagement page, PaymentMethodManagement page
 
 **Dependencies:** Steps 1-4
 
-### Step 9: Payments Module
+### Step 10: Payments Module
 - **Backend:**
   - Payment CRUD endpoints
   - Bulk generation of mandatory payments on enrollment
@@ -316,9 +329,9 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
   - RecurringRulesManagement page (under settings)
   - "Reset payments" button with ConfirmDialog
 
-**Dependencies:** Steps 7, 8 (payments reference students + concepts)
+**Dependencies:** Steps 7, 9 (payments reference students + concepts)
 
-### Step 10: Uniforms Module
+### Step 11: Uniforms Module
 - **Backend:** Catalog CRUD, order creation (multiple items), delivery marking
 - **Frontend:**
   - UniformCatalog: CRUD page
@@ -328,15 +341,15 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Step 7 (uniforms reference students)
 
-### Step 11: Withdrawals Module
+### Step 12: Withdrawals Module
 - **Backend:** Withdrawal processing (status change + debt snapshot), listing
 - **Frontend:**
   - WithdrawalForm: student search → reason → ConfirmDialog → process
   - WithdrawalHistory: DataGrid with withdrawn students
 
-**Dependencies:** Step 9 (withdrawal snapshots debt)
+**Dependencies:** Step 10 (withdrawal snapshots debt)
 
-### Step 12: Business Logic Tests (Vitest)
+### Step 13: Business Logic Tests (Vitest)
 - Install `vitest` as backend devDependency
 - Add `test` and `test:watch` scripts to `backend/package.json`
 - Write integration tests for critical pure business logic functions:
@@ -347,18 +360,8 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 - Tests target **exported pure functions only** (no DB, no mocks, no HTTP)
 - Test files located in `backend/src/services/__tests__/`
 
-**Dependencies:** Steps 9, 11 (services must be implemented first)
+**Dependencies:** Steps 10, 12 (services must be implemented first)
 **Output:** `npm run test --workspace=backend` passes ~15-20 tests
-
-### Step 13: PDF Reports
-- **Backend:** pdfkit-based student report generator
-  - Student personal information
-  - Payment history table
-  - Uniform orders table
-  - Debt summary
-- **Frontend:** "Generar PDF" button in StudentDetail that downloads the PDF
-
-**Dependencies:** Steps 7, 9, 10 (report combines student, payment, uniform data)
 
 ### Step 14: Dashboard
 - **Backend:** Aggregation endpoints (total students, payment summaries, monthly breakdowns)
@@ -366,7 +369,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
   - Metric cards: total active students, pending payments (count + amount), total debt, recent enrollments
   - Charts (recharts): monthly income bar chart, debt trend line chart, payment status pie chart
 
-**Dependencies:** Steps 7, 9 (dashboard aggregates student and payment data)
+**Dependencies:** Steps 7, 10 (dashboard aggregates student and payment data)
 
 ### Step 15: Docker Deployment
 - Backend Dockerfile (Node.js, runs Prisma migrations on startup)
@@ -377,6 +380,11 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 - Persistent MySQL volume
 
 **Output:** `docker compose up` starts the full application on macOS
+
+### Step 16: Excel Reports
+_Requirements pending — export content and format to be defined._
+
+**Dependencies:** TBD
 
 ---
 
@@ -395,27 +403,26 @@ graph TD
     S5 --> S6[Step 6: Groups ✅]
     S6 --> S7[Step 7: Students & Guardians ✅]
 
-    S3 --> S8[Step 8: Payment Concepts]
-    S4 --> S8
+    S7 --> S8[Step 8: Guardians Module]
 
-    S7 --> S9[Step 9: Payments]
-    S8 --> S9
+    S3 --> S9[Step 9: Payment Concepts]
+    S4 --> S9
 
-    S7 --> S10[Step 10: Uniforms]
-    S9 --> S11[Step 11: Withdrawals]
+    S7 --> S10[Step 10: Payments]
+    S9 --> S10
 
-    S9 --> S12[Step 12: Business Logic Tests]
-    S11 --> S12
+    S7 --> S11[Step 11: Uniforms]
+    S10 --> S12[Step 12: Withdrawals]
 
-    S7 --> S13[Step 13: PDF Reports]
-    S9 --> S13
-    S10 --> S13
+    S10 --> S13[Step 13: Business Logic Tests]
+    S12 --> S13
 
     S7 --> S14[Step 14: Dashboard]
-    S9 --> S14
+    S10 --> S14
 
-    S13 --> S15[Step 15: Docker Deployment]
-    S14 --> S15
+    S14 --> S15[Step 15: Docker Deployment]
+
+    S15 --> S16[Step 16: Excel Reports - TBD]
 ```
 
 ---
@@ -433,14 +440,15 @@ graph TD
 | 5 ✅ | Create/edit/activate school cycles via UI |
 | 6 ✅ | Create groups, see student counts, filter by cycle |
 | 7 ✅ | Create students with guardians, search, view detail, duplicate guardian detection works |
-| 8 | Create/edit payment concepts via UI |
-| 9 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
-| 10 | Create uniform orders, mark as delivered, verify catalog CRUD |
-| 11 | Process withdrawal, verify debt snapshot, student status changes, history preserved |
-| 12 | `npm run test --workspace=backend` — all ~15-20 tests pass for debt, payment calculation, recurring rules, withdrawal |
-| 13 | Generate PDF from StudentDetail, verify content includes payments + uniforms |
+| 8 | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students |
+| 9 | Create/edit payment concepts via UI |
+| 10 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
+| 11 | Create uniform orders, mark as delivered, verify catalog CRUD |
+| 12 | Process withdrawal, verify debt snapshot, student status changes, history preserved |
+| 13 | `npm run test --workspace=backend` — all ~15-20 tests pass for debt, payment calculation, recurring rules, withdrawal |
 | 14 | Dashboard shows correct metrics and charts |
 | 15 | `docker compose up` on macOS starts all services; full workflow works |
+| 16 | Excel reports — verification TBD |
 
 ### End-to-End Integration Test
 
@@ -452,7 +460,6 @@ graph TD
 6. Verify mandatory payments were auto-generated
 7. Register a tuition payment → verify debt decreases
 8. Order uniforms → mark one as delivered
-9. Generate PDF report → verify content
-10. Process student withdrawal → verify debt snapshot preserved
-11. Check dashboard metrics and charts reflect the data
-12. Reset a student's payments → verify debt is 0
+9. Process student withdrawal → verify debt snapshot preserved
+10. Check dashboard metrics and charts reflect the data
+11. Reset a student's payments → verify debt is 0

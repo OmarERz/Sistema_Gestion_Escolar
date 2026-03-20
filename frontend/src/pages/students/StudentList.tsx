@@ -55,7 +55,7 @@ export default function StudentList() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [filterCycleId, setFilterCycleId] = useState<number | undefined>(undefined);
   const [filterGroupId, setFilterGroupId] = useState<number | 'none' | undefined>(undefined);
 
@@ -284,8 +284,8 @@ export default function StudentList() {
                     {students.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={6} sx={{ py: 4 }}>
-                          {debouncedSearch
-                            ? 'No se encontraron alumnos'
+                          {debouncedSearch || filterStatus || filterGroupId !== undefined
+                            ? 'No se encontraron alumnos con los filtros aplicados'
                             : 'No hay alumnos registrados'}
                         </TableCell>
                       </TableRow>
