@@ -29,6 +29,7 @@ import {
   FormControlLabel,
   Checkbox,
   Autocomplete,
+  TablePagination,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -36,6 +37,8 @@ import {
   Add,
   ExpandMore,
   ExpandLess,
+  Delete,
+  Visibility,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -44,6 +47,14 @@ import { useStudentById, useStudentAcademicHistory, useUpdateStudent, useAddGuar
 import { useGuardians, useUpdateGuardian, useUpsertFiscalData, useUpdateGuardianLink } from '@/hooks/useGuardians';
 import { useSchoolCycles } from '@/hooks/useSchoolCycles';
 import { useGroups } from '@/hooks/useGroups';
+import {
+  useStudentPayments,
+  useDebtBreakdown,
+  useBulkGenerate,
+  useResetStudentPayments,
+  useRemoveTransaction,
+} from '@/hooks/usePayments';
+import type { Payment } from '@/types/payment';
 import type {
   StudentGuardianLink,
   UpdateStudentData,
@@ -172,6 +183,19 @@ export default function StudentDetail() {
 
   // Fiscal data collapse per guardian
   const [expandedFiscal, setExpandedFiscal] = useState<Record<number, boolean>>({});
+
+  // Payments tab state
+  const [paymentPage, setPaymentPage] = useState(0);
+  const [paymentDetailOpen, setPaymentDetailOpen] = useState<Payment | null>(null);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20);
+  const { data: debtBreakdownResponse } = useDebtBreakdown(studentId);
+  const bulkGenerateMutation = useBulkGenerate();
+  const resetPaymentsMutation = useResetStudentPayments();
+  const removeTransactionMutation = useRemoveTransaction();
+  const studentPayments = studentPaymentsResponse?.data ?? [];
+  const studentPaymentsTotal = studentPaymentsResponse?.pagination?.total ?? 0;
+  const debtBreakdown = debtBreakdownResponse;
 
   // Dropdowns for edit student dialog
   const { data: cyclesResponse } = useSchoolCycles(1, 100);
@@ -626,7 +650,262 @@ export default function StudentDetail() {
 
       {/* Tab: Pagos */}
       <TabPanel value={tabIndex} index={1}>
-        <Alert severity="info">Se habilitará en Step 9</Alert>
+        {/* Debt summary */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">Resumen de Deuda</Typography>
+              <Typography variant="h5" color={Number(debtBreakdown?.totalDebt ?? 0) > 0 ? 'error.main' : 'success.main'}>
+                {Number(debtBreakdown?.totalDebt ?? 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+              </Typography>
+            </Box>
+            {debtBreakdown && debtBreakdown.concepts.length > 0 ? (
+              <TableContainer>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Concepto</TableCell>
+                      <TableCell>Total Adeudado</TableCell>
+                      <TableCell>Total Pagado</TableCell>
+                      <TableCell>Saldo</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {debtBreakdown.concepts.map((c) => (
+                      <TableRow key={c.conceptId}>
+                        <TableCell>{c.conceptName}</TableCell>
+                        <TableCell>{Number(c.totalOwed).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                        <TableCell>{Number(c.totalPaid).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                        <TableCell sx={{ color: Number(c.balance) > 0 ? 'error.main' : 'success.main' }}>
+                          {Number(c.balance).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary">Sin deuda registrada</Typography>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payments table */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 0 }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Concepto</TableCell>
+                    <TableCell>Mes</TableCell>
+                    <TableCell>Monto Final</TableCell>
+                    <TableCell>Pagado</TableCell>
+                    <TableCell>Saldo</TableCell>
+                    <TableCell>Estado</TableCell>
+                    <TableCell>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {studentPayments.map((p) => {
+                    const bal = Number(p.finalAmount) - Number(p.amountPaid);
+                    return (
+                      <TableRow key={p.id} hover sx={{ cursor: 'pointer' }} onClick={() => setPaymentDetailOpen(p)}>
+                        <TableCell>{p.paymentConcept.name}</TableCell>
+                        <TableCell>
+                          {p.appliesToMonth
+                            ? ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][p.appliesToMonth]
+                            : '—'}
+                        </TableCell>
+                        <TableCell>{Number(p.finalAmount).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                        <TableCell>{Number(p.amountPaid).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                        <TableCell sx={{ color: bal > 0 ? 'error.main' : 'success.main' }}>
+                          {bal.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={{ pending: 'Pendiente', paid: 'Pagado', partial: 'Parcial', overdue: 'Vencido', cancelled: 'Cancelado' }[p.status] ?? p.status}
+                            color={{ pending: 'warning' as const, paid: 'success' as const, partial: 'info' as const, overdue: 'error' as const, cancelled: 'default' as const }[p.status] ?? 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <IconButton size="small" onClick={(e) => { e.stopPropagation(); setPaymentDetailOpen(p); }} title="Ver detalle">
+                            <Visibility fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {studentPayments.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={7} sx={{ py: 4 }}>No hay pagos registrados</TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={studentPaymentsTotal}
+              page={paymentPage}
+              onPageChange={(_, newPage) => setPaymentPage(newPage)}
+              rowsPerPage={20}
+              rowsPerPageOptions={[20]}
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Actions */}
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              if (!student) return;
+              try {
+                const result = await bulkGenerateMutation.mutateAsync({ studentId: student.id, schoolCycleId: student.schoolCycleId });
+                enqueueSnackbar(`Se generaron ${result.generated} pago(s) (${result.skipped} ya existían)`, { variant: 'success' });
+              } catch {
+                enqueueSnackbar('Error al generar pagos obligatorios', { variant: 'error' });
+              }
+            }}
+            disabled={bulkGenerateMutation.isPending}
+          >
+            {bulkGenerateMutation.isPending ? 'Generando...' : 'Generar Pagos Obligatorios'}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={() => setConfirmResetOpen(true)}
+            disabled={resetPaymentsMutation.isPending}
+          >
+            Resetear Pagos
+          </Button>
+        </Box>
+
+        {/* Payment detail dialog */}
+        <Dialog open={paymentDetailOpen !== null} onClose={() => setPaymentDetailOpen(null)} maxWidth="md" fullWidth>
+          {paymentDetailOpen && (() => {
+            const p = paymentDetailOpen;
+            const bal = Number(p.finalAmount) - Number(p.amountPaid);
+            const fmt = (v: number | string) => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            return (
+              <>
+                <DialogTitle>{p.paymentConcept.name}</DialogTitle>
+                <DialogContent>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mb: 3, mt: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Monto Base</Typography>
+                      <Typography>{fmt(p.baseAmount)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Descuento</Typography>
+                      <Typography>{Number(p.discountPercent)}%</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Recargo</Typography>
+                      <Typography>{Number(p.surchargePercent)}%</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Monto Final</Typography>
+                      <Typography fontWeight={600}>{fmt(p.finalAmount)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Pagado</Typography>
+                      <Typography color="success.main">{fmt(p.amountPaid)}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Saldo</Typography>
+                      <Typography color={bal > 0 ? 'error.main' : 'success.main'}>{fmt(bal)}</Typography>
+                    </Box>
+                  </Box>
+
+                  <Divider sx={{ mb: 2 }} />
+                  <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Abonos ({p.transactions?.length ?? 0})</Typography>
+                  {p.transactions && p.transactions.length > 0 ? (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Fecha</TableCell>
+                            <TableCell>Monto</TableCell>
+                            <TableCell>Método</TableCell>
+                            <TableCell>Recibo</TableCell>
+                            <TableCell>Acciones</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {p.transactions.map((tx) => (
+                            <TableRow key={tx.id}>
+                              <TableCell>{new Date(tx.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
+                              <TableCell>{fmt(tx.amount)}</TableCell>
+                              <TableCell>{tx.paymentMethod?.name ?? '—'}</TableCell>
+                              <TableCell>{tx.receiptNumber ?? '—'}</TableCell>
+                              <TableCell>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={async () => {
+                                    if (!confirm(`¿Eliminar abono de ${fmt(tx.amount)}?`)) return;
+                                    try {
+                                      await removeTransactionMutation.mutateAsync(tx.id);
+                                      enqueueSnackbar('Abono eliminado', { variant: 'success' });
+                                      setPaymentDetailOpen(null);
+                                    } catch {
+                                      enqueueSnackbar('Error al eliminar abono', { variant: 'error' });
+                                    }
+                                  }}
+                                  title="Eliminar abono"
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No hay abonos registrados</Typography>
+                  )}
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setPaymentDetailOpen(null)}>Cerrar</Button>
+                </DialogActions>
+              </>
+            );
+          })()}
+        </Dialog>
+
+        {/* Confirm reset dialog */}
+        <Dialog open={confirmResetOpen} onClose={() => setConfirmResetOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Resetear Pagos</DialogTitle>
+          <DialogContent>
+            <Alert severity="error" sx={{ mt: 1 }}>
+              Se eliminarán TODOS los pagos y transacciones de este alumno. La deuda quedará en $0. Esta acción es irreversible.
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmResetOpen(false)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="error"
+              disabled={resetPaymentsMutation.isPending}
+              onClick={async () => {
+                try {
+                  await resetPaymentsMutation.mutateAsync(studentId);
+                  enqueueSnackbar('Pagos reseteados', { variant: 'success' });
+                  setConfirmResetOpen(false);
+                } catch {
+                  enqueueSnackbar('Error al resetear pagos', { variant: 'error' });
+                }
+              }}
+            >
+              {resetPaymentsMutation.isPending ? 'Procesando...' : 'Confirmar Reset'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </TabPanel>
 
       {/* Tab: Uniformes */}
