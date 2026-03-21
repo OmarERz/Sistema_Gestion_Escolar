@@ -1,11 +1,11 @@
 /**
  * Student controller.
- * Handles HTTP requests for student CRUD, academic history, and placeholder endpoints
- * for payments/uniforms/debt (wired in later steps).
+ * Handles HTTP requests for student CRUD, academic history, payments, and debt.
  */
 
 import { Request, Response } from 'express';
 import * as studentService from '../services/student.service.js';
+import * as paymentService from '../services/payment.service.js';
 import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
 import type { CreateStudentInput, UpdateStudentInput, GuardianInput } from '../schemas/student.schema.js';
 
@@ -59,17 +59,27 @@ export async function addGuardian(req: Request<{ id: string }>, res: Response) {
   successResponse(res, student, 201);
 }
 
-// Placeholder endpoints — will be connected in later steps
 export async function getPayments(req: Request<{ id: string }>, res: Response) {
-  successResponse(res, []);
+  const studentId = parseInt(req.params.id, 10);
+  const pagination = parsePagination(req.query as { page?: string; limit?: string });
+  const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, ['createdAt', 'dueDate', 'status', 'finalAmount'], 'createdAt', 'desc');
+
+  const filters = {
+    studentId,
+    status: req.query.status as string | undefined,
+  };
+
+  const { data, total } = await paymentService.list(pagination, filters, sort);
+  paginatedResponse(res, data, total, pagination);
 }
 
+// Placeholder — will be connected in the Uniforms step
 export async function getUniforms(req: Request<{ id: string }>, res: Response) {
   successResponse(res, []);
 }
 
 export async function getDebt(req: Request<{ id: string }>, res: Response) {
-  const id = parseInt(req.params.id, 10);
-  const student = await studentService.getById(id);
-  successResponse(res, { totalDebt: student.totalDebt, concepts: [] });
+  const studentId = parseInt(req.params.id, 10);
+  const result = await paymentService.getDebtBreakdown(studentId);
+  successResponse(res, result);
 }

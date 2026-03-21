@@ -9,6 +9,7 @@ import prisma from '../config/database.js';
 import { AppError } from '../utils/apiResponse.js';
 import type { CreateStudentInput, UpdateStudentInput, GuardianInput } from '../schemas/student.schema.js';
 import type { PaginationParams, SortParams } from '../utils/apiResponse.js';
+import { bulkGenerateMandatory } from './payment.service.js';
 
 interface StudentFilters {
   search?: string;
@@ -116,7 +117,7 @@ export async function create(input: CreateStudentInput) {
     }
   }
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     // 1. Create student
     const student = await tx.student.create({
       data: {
@@ -211,6 +212,15 @@ export async function create(input: CreateStudentInput) {
       },
     });
   });
+
+  // Auto-generate mandatory payments after student creation (outside tx to avoid nested transactions)
+  if (result) {
+    await bulkGenerateMandatory(result.id, input.schoolCycleId).catch(() => {
+      // Non-critical: log but don't fail student creation if payment generation fails
+    });
+  }
+
+  return result;
 }
 
 export async function update(id: number, input: UpdateStudentInput) {
