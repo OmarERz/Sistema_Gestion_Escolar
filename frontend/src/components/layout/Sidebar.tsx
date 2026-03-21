@@ -89,9 +89,13 @@ export default function Sidebar() {
     setOpenSections((prev) => ({ ...prev, [title]: !prev[title] }));
   };
 
+  // Paths that have sibling sub-paths as separate menu items — use exact match only
+  const exactMatchPaths = new Set(['/pagos']);
+
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
+    if (exactMatchPaths.has(path)) return location.pathname === path;
+    return location.pathname === path || location.pathname.startsWith(path + '/');
   };
 
   return (
