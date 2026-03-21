@@ -9,6 +9,8 @@ import schoolCycleRoutes from './routes/schoolCycle.routes.js';
 import groupRoutes from './routes/group.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import guardianRoutes from './routes/guardian.routes.js';
+import paymentConceptRoutes from './routes/paymentConcept.routes.js';
+import paymentMethodRoutes from './routes/paymentMethod.routes.js';
 
 const app = express();
 
@@ -33,6 +35,8 @@ app.use('/api/school-cycles', schoolCycleRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/guardians', guardianRoutes);
+app.use('/api/payment-concepts', paymentConceptRoutes);
+app.use('/api/payment-methods', paymentMethodRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
