@@ -39,6 +39,7 @@ import {
   ExpandLess,
   Delete,
   Visibility,
+  Cancel,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -53,8 +54,12 @@ import {
   useBulkGenerate,
   useResetStudentPayments,
   useRemoveTransaction,
+  useUpdatePayment,
+  useDeletePayment,
+  useCancelPayment,
 } from '@/hooks/usePayments';
-import type { Payment } from '@/types/payment';
+import type { Payment, UpdatePaymentFormData } from '@/types/payment';
+import NumberField from '@/components/common/NumberField';
 import type {
   StudentGuardianLink,
   UpdateStudentData,
@@ -188,11 +193,22 @@ export default function StudentDetail() {
   const [paymentPage, setPaymentPage] = useState(0);
   const [paymentDetailOpen, setPaymentDetailOpen] = useState<Payment | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [paymentEditOpen, setPaymentEditOpen] = useState(false);
+  const [paymentEditForm, setPaymentEditForm] = useState<UpdatePaymentFormData>({});
+  const [paymentEditError, setPaymentEditError] = useState('');
+  const [paymentConfirmAction, setPaymentConfirmAction] = useState<{
+    type: 'delete' | 'cancel' | 'removeTransaction';
+    id: number;
+    label: string;
+  } | null>(null);
   const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20);
   const { data: debtBreakdownResponse } = useDebtBreakdown(studentId);
   const bulkGenerateMutation = useBulkGenerate();
   const resetPaymentsMutation = useResetStudentPayments();
   const removeTransactionMutation = useRemoveTransaction();
+  const updatePaymentMutation = useUpdatePayment();
+  const deletePaymentMutation = useDeletePayment();
+  const cancelPaymentMutation = useCancelPayment();
   const studentPayments = studentPaymentsResponse?.data ?? [];
   const studentPaymentsTotal = studentPaymentsResponse?.pagination?.total ?? 0;
   const debtBreakdown = debtBreakdownResponse;
@@ -784,17 +800,47 @@ export default function StudentDetail() {
           </Button>
         </Box>
 
-        {/* Payment detail dialog */}
+        {/* Payment detail dialog — matches PaymentHistory layout */}
         <Dialog open={paymentDetailOpen !== null} onClose={() => setPaymentDetailOpen(null)} maxWidth="md" fullWidth>
           {paymentDetailOpen && (() => {
             const p = paymentDetailOpen;
             const bal = Number(p.finalAmount) - Number(p.amountPaid);
             const fmt = (v: number | string) => Number(v).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+            const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+            const monthNames = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
             return (
               <>
-                <DialogTitle>{p.paymentConcept.name}</DialogTitle>
+                <DialogTitle>Detalle de Pago — {p.paymentConcept.name}</DialogTitle>
                 <DialogContent>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2, mb: 3, mt: 1 }}>
+                  {/* Student & payment info */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mb: 3, mt: 1 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Alumno</Typography>
+                      <Typography>{[p.student.firstName, p.student.lastName1, p.student.lastName2].filter(Boolean).join(' ')}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Concepto</Typography>
+                      <Typography>{p.paymentConcept.name}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Mes</Typography>
+                      <Typography>{p.appliesToMonth ? monthNames[p.appliesToMonth] : '—'}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Estado</Typography>
+                      <Chip
+                        label={{ pending: 'Pendiente', paid: 'Pagado', partial: 'Parcial', overdue: 'Vencido', cancelled: 'Cancelado' }[p.status] ?? p.status}
+                        color={{ pending: 'warning' as const, paid: 'success' as const, partial: 'info' as const, overdue: 'error' as const, cancelled: 'default' as const }[p.status] ?? 'default'}
+                        size="small"
+                      />
+                    </Box>
+                  </Box>
+
+                  <Divider sx={{ mb: 2 }} />
+
+                  {/* Amount breakdown */}
+                  <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Desglose de Montos</Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 2, mb: 3 }}>
                     <Box>
                       <Typography variant="body2" color="text.secondary">Monto Base</Typography>
                       <Typography>{fmt(p.baseAmount)}</Typography>
@@ -821,7 +867,23 @@ export default function StudentDetail() {
                     </Box>
                   </Box>
 
+                  {p.dueDate && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="body2" color="text.secondary">Fecha de Vencimiento</Typography>
+                      <Typography>{fmtDate(p.dueDate)}</Typography>
+                    </Box>
+                  )}
+
+                  {p.notes && (
+                    <Box sx={{ mb: 3 }}>
+                      <Typography variant="body2" color="text.secondary">Notas</Typography>
+                      <Typography>{p.notes}</Typography>
+                    </Box>
+                  )}
+
                   <Divider sx={{ mb: 2 }} />
+
+                  {/* Transactions */}
                   <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Abonos ({p.transactions?.length ?? 0})</Typography>
                   {p.transactions && p.transactions.length > 0 ? (
                     <TableContainer>
@@ -832,30 +894,27 @@ export default function StudentDetail() {
                             <TableCell>Monto</TableCell>
                             <TableCell>Método</TableCell>
                             <TableCell>Recibo</TableCell>
+                            <TableCell>Notas</TableCell>
                             <TableCell>Acciones</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {p.transactions.map((tx) => (
                             <TableRow key={tx.id}>
-                              <TableCell>{new Date(tx.paymentDate).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</TableCell>
+                              <TableCell>{fmtDate(tx.paymentDate)}</TableCell>
                               <TableCell>{fmt(tx.amount)}</TableCell>
                               <TableCell>{tx.paymentMethod?.name ?? '—'}</TableCell>
                               <TableCell>{tx.receiptNumber ?? '—'}</TableCell>
+                              <TableCell>{tx.notes ?? '—'}</TableCell>
                               <TableCell>
                                 <IconButton
                                   size="small"
                                   color="error"
-                                  onClick={async () => {
-                                    if (!confirm(`¿Eliminar abono de ${fmt(tx.amount)}?`)) return;
-                                    try {
-                                      await removeTransactionMutation.mutateAsync(tx.id);
-                                      enqueueSnackbar('Abono eliminado', { variant: 'success' });
-                                      setPaymentDetailOpen(null);
-                                    } catch {
-                                      enqueueSnackbar('Error al eliminar abono', { variant: 'error' });
-                                    }
-                                  }}
+                                  onClick={() => setPaymentConfirmAction({
+                                    type: 'removeTransaction',
+                                    id: tx.id,
+                                    label: `¿Eliminar abono de ${fmt(tx.amount)}? Se recalculará el saldo del pago.`,
+                                  })}
                                   title="Eliminar abono"
                                 >
                                   <Delete fontSize="small" />
@@ -867,15 +926,158 @@ export default function StudentDetail() {
                       </Table>
                     </TableContainer>
                   ) : (
-                    <Typography variant="body2" color="text.secondary">No hay abonos registrados</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>No hay abonos registrados</Typography>
                   )}
                 </DialogContent>
                 <DialogActions>
+                  <Button
+                    onClick={() => {
+                      setPaymentEditForm({
+                        baseAmount: Number(p.baseAmount),
+                        discountPercent: Number(p.discountPercent),
+                        surchargePercent: Number(p.surchargePercent),
+                        dueDate: p.dueDate ? p.dueDate.split('T')[0] : '',
+                        notes: p.notes ?? '',
+                      });
+                      setPaymentEditError('');
+                      setPaymentEditOpen(true);
+                    }}
+                    disabled={p.status === 'cancelled'}
+                    startIcon={<Edit />}
+                  >
+                    Editar
+                  </Button>
+                  {p.status !== 'cancelled' && (
+                    <Button
+                      color="warning"
+                      onClick={() => setPaymentConfirmAction({
+                        type: 'cancel',
+                        id: p.id,
+                        label: '¿Cancelar este pago? El estado cambiará a "Cancelado" y no se contará en la deuda.',
+                      })}
+                      startIcon={<Cancel />}
+                    >
+                      Cancelar Pago
+                    </Button>
+                  )}
+                  <Button
+                    color="error"
+                    onClick={() => setPaymentConfirmAction({
+                      type: 'delete',
+                      id: p.id,
+                      label: '¿Eliminar este pago y todos sus abonos? Esta acción es irreversible.',
+                    })}
+                    startIcon={<Delete />}
+                  >
+                    Eliminar
+                  </Button>
+                  <Box sx={{ flex: 1 }} />
                   <Button onClick={() => setPaymentDetailOpen(null)}>Cerrar</Button>
                 </DialogActions>
               </>
             );
           })()}
+        </Dialog>
+
+        {/* Payment edit dialog */}
+        <Dialog open={paymentEditOpen} onClose={() => setPaymentEditOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Editar Pago</DialogTitle>
+          <DialogContent>
+            {paymentEditError && <Alert severity="error" sx={{ mb: 2, mt: 1 }}>{paymentEditError}</Alert>}
+            <NumberField
+              fullWidth label="Monto Base" placeholder="ej. 1500"
+              value={paymentEditForm.baseAmount ?? ''}
+              onValueChange={(v) => setPaymentEditForm({ ...paymentEditForm, baseAmount: parseFloat(v) || 0 })}
+              margin="normal" min={0}
+            />
+            <NumberField
+              fullWidth label="Descuento %" placeholder="ej. 10"
+              value={paymentEditForm.discountPercent ?? ''}
+              onValueChange={(v) => setPaymentEditForm({ ...paymentEditForm, discountPercent: parseFloat(v) || 0 })}
+              margin="normal" min={0} max={100}
+            />
+            <NumberField
+              fullWidth label="Recargo %" placeholder="ej. 5"
+              value={paymentEditForm.surchargePercent ?? ''}
+              onValueChange={(v) => setPaymentEditForm({ ...paymentEditForm, surchargePercent: parseFloat(v) || 0 })}
+              margin="normal" min={0}
+            />
+            <TextField
+              fullWidth label="Fecha de Vencimiento" placeholder="ej. 2026-04-10" type="date"
+              value={paymentEditForm.dueDate ?? ''}
+              onChange={(e) => setPaymentEditForm({ ...paymentEditForm, dueDate: e.target.value || null })}
+              margin="normal" InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              fullWidth label="Notas" placeholder="ej. Pago con descuento especial"
+              value={paymentEditForm.notes ?? ''}
+              onChange={(e) => setPaymentEditForm({ ...paymentEditForm, notes: e.target.value || null })}
+              margin="normal" multiline rows={2}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPaymentEditOpen(false)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              disabled={updatePaymentMutation.isPending}
+              onClick={async () => {
+                if (!paymentDetailOpen) return;
+                if (paymentEditForm.baseAmount !== undefined && paymentEditForm.baseAmount <= 0) {
+                  setPaymentEditError('El monto base debe ser mayor a 0.');
+                  return;
+                }
+                try {
+                  await updatePaymentMutation.mutateAsync({ id: paymentDetailOpen.id, input: paymentEditForm });
+                  enqueueSnackbar('Pago actualizado', { variant: 'success' });
+                  setPaymentEditOpen(false);
+                  setPaymentDetailOpen(null);
+                } catch {
+                  setPaymentEditError('Error al actualizar el pago.');
+                }
+              }}
+            >
+              {updatePaymentMutation.isPending ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Payment confirm action dialog */}
+        <Dialog open={paymentConfirmAction !== null} onClose={() => setPaymentConfirmAction(null)} maxWidth="xs" fullWidth>
+          <DialogTitle>Confirmar Acción</DialogTitle>
+          <DialogContent>
+            <Typography>{paymentConfirmAction?.label}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setPaymentConfirmAction(null)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color={paymentConfirmAction?.type === 'cancel' ? 'warning' : 'error'}
+              disabled={deletePaymentMutation.isPending || cancelPaymentMutation.isPending || removeTransactionMutation.isPending}
+              onClick={async () => {
+                if (!paymentConfirmAction) return;
+                try {
+                  if (paymentConfirmAction.type === 'delete') {
+                    await deletePaymentMutation.mutateAsync(paymentConfirmAction.id);
+                    enqueueSnackbar('Pago eliminado', { variant: 'success' });
+                    setPaymentDetailOpen(null);
+                  } else if (paymentConfirmAction.type === 'cancel') {
+                    await cancelPaymentMutation.mutateAsync(paymentConfirmAction.id);
+                    enqueueSnackbar('Pago cancelado', { variant: 'success' });
+                    setPaymentDetailOpen(null);
+                  } else if (paymentConfirmAction.type === 'removeTransaction') {
+                    await removeTransactionMutation.mutateAsync(paymentConfirmAction.id);
+                    enqueueSnackbar('Abono eliminado', { variant: 'success' });
+                    setPaymentDetailOpen(null);
+                  }
+                } catch {
+                  enqueueSnackbar('Error al realizar la acción', { variant: 'error' });
+                }
+                setPaymentConfirmAction(null);
+              }}
+            >
+              Confirmar
+            </Button>
+          </DialogActions>
         </Dialog>
 
         {/* Confirm reset dialog */}
