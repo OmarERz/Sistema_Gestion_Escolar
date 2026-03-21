@@ -13,6 +13,7 @@ import paymentConceptRoutes from './routes/paymentConcept.routes.js';
 import paymentMethodRoutes from './routes/paymentMethod.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import recurringRuleRoutes from './routes/recurringRule.routes.js';
+import uniformRoutes from './routes/uniform.routes.js';
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.use('/api/payment-concepts', paymentConceptRoutes);
 app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/recurring-rules', recurringRuleRoutes);
+app.use('/api/uniforms', uniformRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

@@ -400,13 +400,39 @@ Divided into 8 sub-modules (10A–10H), implemented sequentially.
 
 **Dependencies:** Steps 7, 9 (payments reference students + concepts)
 
-### Step 11: Uniforms Module
-- **Backend:** Catalog CRUD, order creation (multiple items), delivery marking
-- **Frontend:**
-  - UniformCatalog: CRUD page
-  - UniformRegistration: multi-item order form with student search
-  - Uniform tab in StudentDetail
-  - Pending delivery indicators
+### Step 11: Uniforms Module ✅
+
+#### Sub-module 11A: Backend Catalog CRUD
+- Zod schemas: `createCatalogSchema` (name, description?, basePrice), `updateCatalogSchema` (+isActive)
+- Service: `listCatalog`, `createCatalogItem`, `updateCatalogItem` (soft delete via isActive)
+- Controller with SORTABLE_FIELDS: name, basePrice, isActive, createdAt
+- Routes: GET/POST `/api/uniforms/catalog`, PUT `/api/uniforms/catalog/:id`
+
+#### Sub-module 11B: Backend Orders + Student Uniforms
+- Zod schema: `createOrderSchema` — studentId, orderDate, notes?, items[{uniformCatalogId, size, quantity}] (min 1)
+- Service: `listOrders` (filters: search by student name, isDelivered), `createOrder` ($transaction: validate student + active catalog items, capture unitPrice, compute totalPrice), `markDelivered`, `deleteUniform` (hard delete), `getStudentUniforms`
+- Controller with ORDER_SORTABLE_FIELDS: orderDate, totalPrice, isDelivered, student, catalogItem, size, quantity
+- Routes: GET/POST `/api/uniforms/orders`, PATCH `/api/uniforms/orders/:id/deliver`, DELETE `/api/uniforms/orders/:id`
+- Student controller placeholder replaced with real paginated endpoint
+
+#### Sub-module 11C: Frontend Types + API + Hooks
+- Types: `UniformCatalogItem`, `Uniform` (with student/catalog includes), `CreateCatalogData`, `UpdateCatalogData`, `CreateUniformOrderData`
+- API client: catalog (getCatalog, createCatalogItem, updateCatalogItem) + orders (getOrders, createOrder, markDelivered, deleteUniform) + getStudentUniforms
+- Hooks: `useUniformCatalog`, `useUniformOrders`, `useStudentUniforms`, `useCreateCatalogItem`, `useUpdateCatalogItem`, `useCreateUniformOrder`, `useMarkDelivered`, `useDeleteUniform` — cross-invalidation of uniformCatalog, uniformOrders, studentUniforms keys
+
+#### Sub-module 11D: Frontend UniformCatalog Settings Page (`/configuracion/catalogo-uniformes`)
+- Sortable/paginated table: Nombre, Descripción, Precio Base, Estado (chip Activo/Inactivo), Acciones (editar)
+- Create/edit dialog: nombre, descripción (multiline), precio base (NumberField), activo (Switch, solo en editar)
+- Follows PaymentConceptManagement pattern
+
+#### Sub-module 11E: Frontend UniformRegistration Page (`/uniformes`)
+- **Order form section:** student Autocomplete search, dynamic items list (catalog dropdown, freeSolo size Autocomplete with predefined suggestions XCH/CH/M/G/XG/4-16, quantity NumberField, readonly unit price, computed subtotal), add/remove item buttons, order date, notes, prominent total, "Registrar Pedido" button
+- **Orders table section:** paginated/sortable table of all orders (Alumno, Artículo, Talla, Cant., Total, Fecha Pedido, Entrega chip), filters (search by student, delivery status dropdown), actions (Marcar Entregado, Eliminar with confirmation dialogs)
+
+#### Sub-module 11F: Frontend StudentDetail Uniforms Tab
+- Summary alert: "X artículo(s) pendiente(s) de entrega"
+- Sortable/paginated table: Artículo, Talla, Cantidad, Precio Unit., Total, Fecha Pedido, Entrega (chip), Acciones
+- Actions: "Marcar Entregado" (confirm dialog), "Eliminar" (confirm dialog)
 
 **Dependencies:** Step 7 (uniforms reference students)
 

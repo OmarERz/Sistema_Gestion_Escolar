@@ -31,6 +31,7 @@ import {
   Autocomplete,
   TablePagination,
   TableSortLabel,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -41,6 +42,7 @@ import {
   Delete,
   Visibility,
   Cancel,
+  CheckCircle,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
@@ -60,6 +62,13 @@ import {
   useCancelPayment,
 } from '@/hooks/usePayments';
 import type { Payment, UpdatePaymentFormData } from '@/types/payment';
+import {
+  useStudentUniforms,
+  useMarkDelivered,
+  useDeleteUniform,
+  useUpdateUniform,
+} from '@/hooks/useUniforms';
+import type { Uniform } from '@/types/uniform';
 import NumberField from '@/components/common/NumberField';
 import type {
   StudentGuardianLink,
@@ -215,6 +224,25 @@ export default function StudentDetail() {
   const studentPayments = studentPaymentsResponse?.data ?? [];
   const studentPaymentsTotal = studentPaymentsResponse?.pagination?.total ?? 0;
   const debtBreakdown = debtBreakdownResponse;
+
+  // Uniforms tab state
+  const [uniformPage, setUniformPage] = useState(0);
+  const [uniformSortBy, setUniformSortBy] = useState<string>('createdAt');
+  const [uniformSortDir, setUniformSortDir] = useState<'asc' | 'desc'>('desc');
+  const [confirmUniformDeliverId, setConfirmUniformDeliverId] = useState<number | null>(null);
+  const [confirmUniformDeleteId, setConfirmUniformDeleteId] = useState<number | null>(null);
+  const [editingUniform, setEditingUniform] = useState<Uniform | null>(null);
+  const [editUniformSize, setEditUniformSize] = useState('');
+  const [editUniformQuantity, setEditUniformQuantity] = useState(1);
+  const [editUniformNotes, setEditUniformNotes] = useState('');
+  const [editUniformError, setEditUniformError] = useState('');
+  const { data: studentUniformsResponse } = useStudentUniforms(studentId, uniformPage + 1, 20, uniformSortBy, uniformSortDir);
+  const studentUniforms = studentUniformsResponse?.data ?? [];
+  const studentUniformsTotal = studentUniformsResponse?.pagination?.total ?? 0;
+  const markDeliveredMutation = useMarkDelivered();
+  const deleteUniformMutation = useDeleteUniform();
+  const updateUniformMutation = useUpdateUniform();
+  const pendingUniformCount = studentUniforms.filter((u: Uniform) => !u.isDelivered).length;
 
   // Dropdowns for edit student dialog
   const { data: cyclesResponse } = useSchoolCycles(1, 100);
@@ -1151,7 +1179,321 @@ export default function StudentDetail() {
 
       {/* Tab: Uniformes */}
       <TabPanel value={tabIndex} index={2}>
-        <Alert severity="info">Se habilitará en Step 10</Alert>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          {pendingUniformCount > 0
+            ? `${pendingUniformCount} artículo(s) pendiente(s) de entrega`
+            : 'No hay artículos pendientes de entrega'}
+        </Alert>
+        <Card>
+          <CardContent sx={{ p: 3, '&:last-child': { pb: 3 } }}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>
+                      <TableSortLabel
+                        active={uniformSortBy === 'catalogItem'}
+                        direction={uniformSortBy === 'catalogItem' ? uniformSortDir : 'asc'}
+                        onClick={() => {
+                          if (uniformSortBy === 'catalogItem') {
+                            setUniformSortDir(uniformSortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setUniformSortBy('catalogItem');
+                            setUniformSortDir('asc');
+                          }
+                          setUniformPage(0);
+                        }}
+                      >
+                        Artículo
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Talla</TableCell>
+                    <TableCell>Cantidad</TableCell>
+                    <TableCell>Precio Unit.</TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={uniformSortBy === 'totalPrice'}
+                        direction={uniformSortBy === 'totalPrice' ? uniformSortDir : 'asc'}
+                        onClick={() => {
+                          if (uniformSortBy === 'totalPrice') {
+                            setUniformSortDir(uniformSortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setUniformSortBy('totalPrice');
+                            setUniformSortDir('asc');
+                          }
+                          setUniformPage(0);
+                        }}
+                      >
+                        Total
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={uniformSortBy === 'orderDate'}
+                        direction={uniformSortBy === 'orderDate' ? uniformSortDir : 'asc'}
+                        onClick={() => {
+                          if (uniformSortBy === 'orderDate') {
+                            setUniformSortDir(uniformSortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setUniformSortBy('orderDate');
+                            setUniformSortDir('asc');
+                          }
+                          setUniformPage(0);
+                        }}
+                      >
+                        Fecha Pedido
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Notas</TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={uniformSortBy === 'isDelivered'}
+                        direction={uniformSortBy === 'isDelivered' ? uniformSortDir : 'asc'}
+                        onClick={() => {
+                          if (uniformSortBy === 'isDelivered') {
+                            setUniformSortDir(uniformSortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setUniformSortBy('isDelivered');
+                            setUniformSortDir('asc');
+                          }
+                          setUniformPage(0);
+                        }}
+                      >
+                        Entrega
+                      </TableSortLabel>
+                    </TableCell>
+                    <TableCell>Acciones</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {studentUniforms.map((u: Uniform) => (
+                    <TableRow key={u.id}>
+                      <TableCell>{u.uniformCatalog.name}</TableCell>
+                      <TableCell>{u.size}</TableCell>
+                      <TableCell>{u.quantity}</TableCell>
+                      <TableCell>{Number(u.unitPrice).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                      <TableCell>{Number(u.totalPrice).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</TableCell>
+                      <TableCell>{new Date(u.orderDate).toLocaleDateString('es-MX')}</TableCell>
+                      <TableCell>
+                        {u.notes ? (
+                          <Tooltip title={u.notes} arrow>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                maxWidth: 150,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                cursor: 'default',
+                              }}
+                            >
+                              {u.notes}
+                            </Typography>
+                          </Tooltip>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={u.isDelivered ? 'Entregado' : 'Pendiente'}
+                          color={u.isDelivered ? 'success' : 'warning'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell sx={{ whiteSpace: 'nowrap' }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditingUniform(u);
+                            setEditUniformSize(u.size);
+                            setEditUniformQuantity(u.quantity);
+                            setEditUniformNotes(u.notes ?? '');
+                            setEditUniformError('');
+                          }}
+                          title="Editar"
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        {!u.isDelivered && (
+                          <IconButton
+                            size="small"
+                            color="success"
+                            onClick={() => setConfirmUniformDeliverId(u.id)}
+                            title="Marcar Entregado"
+                          >
+                            <CheckCircle fontSize="small" />
+                          </IconButton>
+                        )}
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => setConfirmUniformDeleteId(u.id)}
+                          title="Eliminar"
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {studentUniforms.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} sx={{ py: 4 }}>
+                        No hay uniformes registrados para este alumno
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={studentUniformsTotal}
+              page={uniformPage}
+              onPageChange={(_, newPage) => setUniformPage(newPage)}
+              rowsPerPage={20}
+              rowsPerPageOptions={[20]}
+              labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Edit uniform dialog */}
+        <Dialog open={editingUniform !== null} onClose={() => setEditingUniform(null)} maxWidth="sm" fullWidth>
+          <DialogTitle>Editar Pedido</DialogTitle>
+          <DialogContent>
+            {editingUniform && (
+              <Box sx={{ mt: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Artículo: <strong>{editingUniform.uniformCatalog.name}</strong> — Precio unit.: {Number(editingUniform.unitPrice).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                </Typography>
+                {editUniformError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>{editUniformError}</Alert>
+                )}
+                <Autocomplete
+                  freeSolo
+                  options={['XCH', 'CH', 'M', 'G', 'XG', '4', '6', '8', '10', '12', '14', '16']}
+                  value={editUniformSize}
+                  onChange={(_, value) => setEditUniformSize(value ?? '')}
+                  onInputChange={(_, value) => setEditUniformSize(value)}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Talla" placeholder="ej. M" margin="normal" fullWidth />
+                  )}
+                />
+                <NumberField
+                  fullWidth
+                  label="Cantidad"
+                  value={editUniformQuantity}
+                  onValueChange={(v) => setEditUniformQuantity(parseInt(v, 10) || 1)}
+                  margin="normal"
+                  min={1}
+                  step={1}
+                />
+                <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
+                  Nuevo total: <strong>{Number(Number(editingUniform.unitPrice) * editUniformQuantity).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}</strong>
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Notas"
+                  placeholder="ej. Entrega para septiembre"
+                  value={editUniformNotes}
+                  onChange={(e) => setEditUniformNotes(e.target.value)}
+                  margin="normal"
+                  multiline
+                  rows={2}
+                />
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setEditingUniform(null)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              disabled={updateUniformMutation.isPending}
+              onClick={async () => {
+                if (!editingUniform) return;
+                if (!editUniformSize.trim()) {
+                  setEditUniformError('La talla es requerida');
+                  return;
+                }
+                if (editUniformQuantity < 1) {
+                  setEditUniformError('La cantidad debe ser al menos 1');
+                  return;
+                }
+                try {
+                  await updateUniformMutation.mutateAsync({
+                    id: editingUniform.id,
+                    input: {
+                      size: editUniformSize,
+                      quantity: editUniformQuantity,
+                      notes: editUniformNotes || null,
+                    },
+                  });
+                  enqueueSnackbar('Pedido actualizado', { variant: 'success' });
+                  setEditingUniform(null);
+                } catch {
+                  setEditUniformError('Error al actualizar el pedido');
+                }
+              }}
+            >
+              {updateUniformMutation.isPending ? 'Guardando...' : 'Guardar'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Confirm deliver */}
+        <Dialog open={confirmUniformDeliverId !== null} onClose={() => setConfirmUniformDeliverId(null)}>
+          <DialogTitle>Confirmar Entrega</DialogTitle>
+          <DialogContent>
+            <Typography>¿Marcar este artículo como entregado?</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmUniformDeliverId(null)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={markDeliveredMutation.isPending}
+              onClick={async () => {
+                try {
+                  await markDeliveredMutation.mutateAsync(confirmUniformDeliverId!);
+                  enqueueSnackbar('Artículo marcado como entregado', { variant: 'success' });
+                  setConfirmUniformDeliverId(null);
+                } catch {
+                  enqueueSnackbar('Error al marcar como entregado', { variant: 'error' });
+                }
+              }}
+            >
+              {markDeliveredMutation.isPending ? 'Procesando...' : 'Confirmar'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Confirm delete */}
+        <Dialog open={confirmUniformDeleteId !== null} onClose={() => setConfirmUniformDeleteId(null)}>
+          <DialogTitle>Confirmar Eliminación</DialogTitle>
+          <DialogContent>
+            <Typography>¿Eliminar este artículo? Esta acción no se puede deshacer.</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmUniformDeleteId(null)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="error"
+              disabled={deleteUniformMutation.isPending}
+              onClick={async () => {
+                try {
+                  await deleteUniformMutation.mutateAsync(confirmUniformDeleteId!);
+                  enqueueSnackbar('Artículo eliminado', { variant: 'success' });
+                  setConfirmUniformDeleteId(null);
+                } catch {
+                  enqueueSnackbar('Error al eliminar', { variant: 'error' });
+                }
+              }}
+            >
+              {deleteUniformMutation.isPending ? 'Eliminando...' : 'Eliminar'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </TabPanel>
 
       {/* Tab: Academic History */}

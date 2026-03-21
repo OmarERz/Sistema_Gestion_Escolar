@@ -6,6 +6,7 @@
 import { Request, Response } from 'express';
 import * as studentService from '../services/student.service.js';
 import * as paymentService from '../services/payment.service.js';
+import * as uniformService from '../services/uniform.service.js';
 import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
 import type { CreateStudentInput, UpdateStudentInput, GuardianInput } from '../schemas/student.schema.js';
 
@@ -73,9 +74,18 @@ export async function getPayments(req: Request<{ id: string }>, res: Response) {
   paginatedResponse(res, data, total, pagination);
 }
 
-// Placeholder — will be connected in the Uniforms step
 export async function getUniforms(req: Request<{ id: string }>, res: Response) {
-  successResponse(res, []);
+  const studentId = parseInt(req.params.id, 10);
+  const pagination = parsePagination(req.query as { page?: string; limit?: string });
+  const sort = parseSort(
+    req.query as { sortBy?: string; sortDir?: string },
+    ['orderDate', 'totalPrice', 'isDelivered', 'createdAt', 'catalogItem'],
+    'createdAt',
+    'desc',
+  );
+
+  const { data, total } = await uniformService.getStudentUniforms(studentId, pagination, sort);
+  paginatedResponse(res, data, total, pagination);
 }
 
 export async function getDebt(req: Request<{ id: string }>, res: Response) {
