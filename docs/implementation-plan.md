@@ -82,13 +82,14 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | PATCH | `/api/groups/:id/empty` | Remove all students from group |
 | DELETE | `/api/groups/:id` | Delete group (must be empty) |
 
-### Students (8 endpoints)
+### Students (9 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/students` | List students (search, filter) |
 | POST | `/api/students` | Create student with guardians |
 | GET | `/api/students/:id` | Student detail |
 | PUT | `/api/students/:id` | Update student |
+| POST | `/api/students/:id/guardians` | Add guardian to existing student (new or link existing, max 4) |
 | GET | `/api/students/:id/payments` | Payment history |
 | GET | `/api/students/:id/uniforms` | Uniform orders |
 | GET | `/api/students/:id/debt` | Detailed debt breakdown |
@@ -162,7 +163,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 ### Reports (TBD)
 _Excel report endpoints to be defined once export requirements are finalized._
 
-**Total: ~50 endpoints + reports TBD**
+**Total: ~51 endpoints + reports TBD**
 
 ---
 
@@ -304,9 +305,10 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 - **Frontend:**
   - GuardianList (`/tutores`): paginated searchable table (name, phone, email, linked student count), active/inactive badge, status filter (default: active), server-side sorting
   - GuardianDetail (`/tutores/:id`): tabbed view (Info editable via dialog, Datos Fiscales editable via dialog, Alumnos Vinculados table with unlink — disabled when student has only 1 guardian)
-  - StudentDetail: edit guardian dialog extended with relationship select and isPrimary checkbox; guardians sorted primary-first
+  - StudentDetail: edit guardian dialog extended with relationship select and isPrimary checkbox; guardians sorted primary-first; "Agregar Tutor" button with dialog (create new or link existing via search autocomplete)
   - Sidebar: "Tutores" entry added after "Alumnos" in Matrícula section
   - StudentList: status filter defaults to active students only
+  - Dev tooling: `kill-port` added to backend `dev` script to prevent zombie processes on port 3000
 
 **Dependencies:** Step 7 (guardians reference students)
 
@@ -443,7 +445,7 @@ graph TD
 | 5 ✅ | Create/edit/activate school cycles via UI |
 | 6 ✅ | Create groups, see student counts, filter by cycle |
 | 7 ✅ | Create students with guardians, search, view detail, duplicate guardian detection works |
-| 8 ✅ | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students, edit relationship/isPrimary |
+| 8 ✅ | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students, edit relationship/isPrimary, add guardian to existing student (new or link existing) |
 | 9 | Create/edit payment concepts via UI |
 | 10 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
 | 11 | Create uniform orders, mark as delivered, verify catalog CRUD |

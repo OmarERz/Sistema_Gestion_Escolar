@@ -28,25 +28,29 @@ import {
   Collapse,
   FormControlLabel,
   Checkbox,
+  Autocomplete,
 } from '@mui/material';
 import {
   ArrowBack,
   Edit,
+  Add,
   ExpandMore,
   ExpandLess,
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useSnackbar } from 'notistack';
-import { useStudentById, useStudentAcademicHistory, useUpdateStudent } from '@/hooks/useStudents';
-import { useUpdateGuardian, useUpsertFiscalData, useUpdateGuardianLink } from '@/hooks/useGuardians';
+import { useStudentById, useStudentAcademicHistory, useUpdateStudent, useAddGuardianToStudent } from '@/hooks/useStudents';
+import { useGuardians, useUpdateGuardian, useUpsertFiscalData, useUpdateGuardianLink } from '@/hooks/useGuardians';
 import { useSchoolCycles } from '@/hooks/useSchoolCycles';
 import { useGroups } from '@/hooks/useGroups';
 import type {
   StudentGuardianLink,
   UpdateStudentData,
   GuardianData,
+  GuardianFormData,
   FiscalDataFormData,
+  Guardian,
 } from '@/types/student';
 
 const LEVEL_LABELS: Record<string, string> = {
@@ -144,6 +148,27 @@ export default function StudentDetail() {
   });
   const [editFiscalError, setEditFiscalError] = useState('');
   const upsertFiscalMutation = useUpsertFiscalData();
+
+  // Add guardian dialog state
+  const [addGuardianOpen, setAddGuardianOpen] = useState(false);
+  const [addGuardianMode, setAddGuardianMode] = useState<'new' | 'link'>('new');
+  const [addGuardianData, setAddGuardianData] = useState<Omit<GuardianFormData, 'fiscalData'>>({
+    firstName: '',
+    lastName1: '',
+    lastName2: null,
+    email: null,
+    phone: '',
+    phoneSecondary: null,
+    address: null,
+    relationship: 'Madre',
+    isPrimary: false,
+  });
+  const [addGuardianError, setAddGuardianError] = useState('');
+  const [guardianSearch, setGuardianSearch] = useState('');
+  const [selectedGuardian, setSelectedGuardian] = useState<Guardian | null>(null);
+  const addGuardianMutation = useAddGuardianToStudent();
+  const { data: guardianSearchResponse } = useGuardians(1, 10, guardianSearch || undefined);
+  const guardianSearchResults = guardianSearchResponse?.data ?? [];
 
   // Fiscal data collapse per guardian
   const [expandedFiscal, setExpandedFiscal] = useState<Record<number, boolean>>({});
@@ -308,6 +333,83 @@ export default function StudentDetail() {
     }
   };
 
+  // --- Add guardian handlers ---
+  const openAddGuardian = () => {
+    setAddGuardianMode('new');
+    setAddGuardianData({
+      firstName: '',
+      lastName1: '',
+      lastName2: null,
+      email: null,
+      phone: '',
+      phoneSecondary: null,
+      address: null,
+      relationship: 'Madre',
+      isPrimary: false,
+    });
+    setSelectedGuardian(null);
+    setGuardianSearch('');
+    setAddGuardianError('');
+    setAddGuardianOpen(true);
+  };
+
+  const handleSaveAddGuardian = async () => {
+    if (addGuardianMode === 'link') {
+      if (!selectedGuardian) {
+        setAddGuardianError('Selecciona un tutor existente');
+        return;
+      }
+      try {
+        await addGuardianMutation.mutateAsync({
+          studentId,
+          data: {
+            id: selectedGuardian.id,
+            firstName: selectedGuardian.firstName,
+            lastName1: selectedGuardian.lastName1,
+            phone: selectedGuardian.phone,
+            relationship: addGuardianData.relationship,
+            isPrimary: addGuardianData.isPrimary,
+          },
+        });
+        enqueueSnackbar('Tutor vinculado exitosamente', { variant: 'success' });
+        setAddGuardianOpen(false);
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error && 'response' in err
+            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined;
+        setAddGuardianError(msg ?? 'Error al vincular el tutor');
+      }
+    } else {
+      if (!addGuardianData.firstName.trim()) {
+        setAddGuardianError('El nombre es requerido');
+        return;
+      }
+      if (!addGuardianData.lastName1.trim()) {
+        setAddGuardianError('El apellido paterno es requerido');
+        return;
+      }
+      if (!addGuardianData.phone.trim()) {
+        setAddGuardianError('El teléfono es requerido');
+        return;
+      }
+      try {
+        await addGuardianMutation.mutateAsync({
+          studentId,
+          data: addGuardianData,
+        });
+        enqueueSnackbar('Tutor agregado exitosamente', { variant: 'success' });
+        setAddGuardianOpen(false);
+      } catch (err: unknown) {
+        const msg =
+          err instanceof Error && 'response' in err
+            ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+            : undefined;
+        setAddGuardianError(msg ?? 'Error al agregar el tutor');
+      }
+    }
+  };
+
   // --- Render ---
   if (isLoading) {
     return (
@@ -410,9 +512,17 @@ export default function StudentDetail() {
         </Card>
 
         {/* Guardians */}
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          Tutores
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">Tutores</Typography>
+          <Button
+            startIcon={<Add />}
+            size="small"
+            onClick={openAddGuardian}
+            disabled={(student.guardians?.length ?? 0) >= 4}
+          >
+            Agregar Tutor
+          </Button>
+        </Box>
         {[...(student.guardians ?? [])].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)).map((link) => {
           const g = link.guardian;
           const gFullName = [g.firstName, g.lastName1, g.lastName2].filter(Boolean).join(' ');
@@ -976,6 +1086,181 @@ export default function StudentDetail() {
             disabled={upsertFiscalMutation.isPending}
           >
             {upsertFiscalMutation.isPending ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Guardian Dialog */}
+      <Dialog open={addGuardianOpen} onClose={() => setAddGuardianOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Agregar Tutor</DialogTitle>
+        <DialogContent>
+          {addGuardianError && (
+            <Alert severity="error" sx={{ mb: 2, mt: 1 }}>
+              {addGuardianError}
+            </Alert>
+          )}
+
+          {/* Mode toggle */}
+          <Tabs
+            value={addGuardianMode === 'new' ? 0 : 1}
+            onChange={(_, v) => {
+              setAddGuardianMode(v === 0 ? 'new' : 'link');
+              setAddGuardianError('');
+            }}
+            sx={{ mb: 2 }}
+          >
+            <Tab label="Nuevo" />
+            <Tab label="Vincular Existente" />
+          </Tabs>
+
+          {addGuardianMode === 'new' ? (
+            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+              <TextField
+                label="Nombre(s)"
+                placeholder="ej. María"
+                value={addGuardianData.firstName}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({ ...prev, firstName: e.target.value }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Apellido Paterno"
+                placeholder="ej. García"
+                value={addGuardianData.lastName1}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({ ...prev, lastName1: e.target.value }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Apellido Materno"
+                placeholder="ej. López"
+                value={addGuardianData.lastName2 ?? ''}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({
+                    ...prev,
+                    lastName2: e.target.value || null,
+                  }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Teléfono"
+                placeholder="ej. 6141234567"
+                value={addGuardianData.phone}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({ ...prev, phone: e.target.value }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Teléfono Secundario"
+                placeholder="ej. 6149876543"
+                value={addGuardianData.phoneSecondary ?? ''}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({
+                    ...prev,
+                    phoneSecondary: e.target.value || null,
+                  }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Correo Electrónico"
+                placeholder="ej. maria@gmail.com"
+                value={addGuardianData.email ?? ''}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({ ...prev, email: e.target.value || null }))
+                }
+                fullWidth
+              />
+              <TextField
+                label="Dirección"
+                placeholder="ej. Calle Reforma #123, Col. Centro"
+                value={addGuardianData.address ?? ''}
+                onChange={(e) =>
+                  setAddGuardianData((prev) => ({ ...prev, address: e.target.value || null }))
+                }
+                fullWidth
+                sx={{ gridColumn: 'span 2' }}
+              />
+            </Box>
+          ) : (
+            <Autocomplete
+              options={guardianSearchResults}
+              getOptionLabel={(option) =>
+                [option.firstName, option.lastName1, option.lastName2].filter(Boolean).join(' ')
+              }
+              value={selectedGuardian}
+              onChange={(_, value) => setSelectedGuardian(value)}
+              onInputChange={(_, value) => setGuardianSearch(value)}
+              renderOption={(props, option) => (
+                <li {...props} key={option.id}>
+                  <Box>
+                    <Typography variant="body2">
+                      {[option.firstName, option.lastName1, option.lastName2].filter(Boolean).join(' ')}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {option.phone} {option.email ? `· ${option.email}` : ''}
+                    </Typography>
+                  </Box>
+                </li>
+              )}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Buscar tutor existente"
+                  placeholder="ej. García"
+                  fullWidth
+                />
+              )}
+              noOptionsText="No se encontraron tutores"
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+          )}
+
+          {/* Relationship & isPrimary — shared by both modes */}
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              select
+              label="Relación"
+              value={addGuardianData.relationship}
+              onChange={(e) =>
+                setAddGuardianData((prev) => ({ ...prev, relationship: e.target.value }))
+              }
+              fullWidth
+            >
+              <MenuItem value="Madre">Madre</MenuItem>
+              <MenuItem value="Padre">Padre</MenuItem>
+              <MenuItem value="Tutor">Tutor</MenuItem>
+              <MenuItem value="Abuelo/a">Abuelo/a</MenuItem>
+              <MenuItem value="Tío/a">Tío/a</MenuItem>
+              <MenuItem value="Otro">Otro</MenuItem>
+            </TextField>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={addGuardianData.isPrimary}
+                  onChange={(e) =>
+                    setAddGuardianData((prev) => ({ ...prev, isPrimary: e.target.checked }))
+                  }
+                />
+              }
+              label="Tutor Principal"
+              sx={{ alignSelf: 'center' }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddGuardianOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            onClick={handleSaveAddGuardian}
+            disabled={addGuardianMutation.isPending}
+          >
+            {addGuardianMutation.isPending ? 'Guardando...' : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>

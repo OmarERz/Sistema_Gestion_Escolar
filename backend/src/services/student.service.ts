@@ -7,7 +7,7 @@
 
 import prisma from '../config/database.js';
 import { AppError } from '../utils/apiResponse.js';
-import type { CreateStudentInput, UpdateStudentInput } from '../schemas/student.schema.js';
+import type { CreateStudentInput, UpdateStudentInput, GuardianInput } from '../schemas/student.schema.js';
 import type { PaginationParams, SortParams } from '../utils/apiResponse.js';
 
 interface StudentFilters {
@@ -237,6 +237,93 @@ export async function update(id: number, input: UpdateStudentInput) {
       group: { select: { id: true, name: true, level: true } },
       schoolCycle: { select: { id: true, name: true } },
     },
+  });
+}
+
+/** Add a guardian (new or existing) to a student. Max 4 guardians per student. */
+export async function addGuardian(studentId: number, input: GuardianInput) {
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (!student) {
+    throw new AppError(404, 'Student not found', 'STUDENT_NOT_FOUND');
+  }
+
+  const currentCount = await prisma.studentGuardian.count({ where: { studentId } });
+  if (currentCount >= 4) {
+    throw new AppError(400, 'Maximum 4 guardians per student', 'MAX_GUARDIANS');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    let guardianId: number;
+
+    if (input.id) {
+      const existing = await tx.guardian.findUnique({ where: { id: input.id } });
+      if (!existing) {
+        throw new AppError(404, `Guardian with id ${input.id} not found`, 'GUARDIAN_NOT_FOUND');
+      }
+      // Check not already linked
+      const existingLink = await tx.studentGuardian.findUnique({
+        where: { unique_student_guardian: { studentId, guardianId: input.id } },
+      });
+      if (existingLink) {
+        throw new AppError(400, 'Guardian already linked to this student', 'ALREADY_LINKED');
+      }
+      guardianId = existing.id;
+    } else {
+      const newGuardian = await tx.guardian.create({
+        data: {
+          firstName: input.firstName!,
+          lastName1: input.lastName1!,
+          lastName2: input.lastName2 ?? null,
+          email: input.email ?? null,
+          phone: input.phone!,
+          phoneSecondary: input.phoneSecondary ?? null,
+          address: input.address ?? null,
+        },
+      });
+      guardianId = newGuardian.id;
+    }
+
+    // If setting as primary, unset others
+    if (input.isPrimary) {
+      await tx.studentGuardian.updateMany({
+        where: { studentId },
+        data: { isPrimary: false },
+      });
+    }
+
+    await tx.studentGuardian.create({
+      data: {
+        studentId,
+        guardianId,
+        relationship: input.relationship,
+        isPrimary: input.isPrimary,
+      },
+    });
+
+    // Create fiscal data if provided (only for new guardians)
+    if (input.fiscalData && !input.id) {
+      await tx.fiscalData.create({
+        data: {
+          guardianId,
+          ...input.fiscalData,
+          fiscalRegime: input.fiscalData.fiscalRegime ?? null,
+          fiscalAddressExtNumber: input.fiscalData.fiscalAddressExtNumber ?? null,
+          fiscalAddressIntNumber: input.fiscalData.fiscalAddressIntNumber ?? null,
+          fiscalAddressNeighborhood: input.fiscalData.fiscalAddressNeighborhood ?? null,
+        },
+      });
+    }
+
+    return tx.student.findUnique({
+      where: { id: studentId },
+      include: {
+        group: { select: { id: true, name: true, level: true } },
+        schoolCycle: { select: { id: true, name: true } },
+        guardians: {
+          include: { guardian: { include: { fiscalData: true } } },
+        },
+      },
+    });
   });
 }
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as studentsApi from '@/api/students';
-import type { StudentFormData, UpdateStudentData } from '@/types/student';
+import type { StudentFormData, UpdateStudentData, GuardianFormData } from '@/types/student';
 
 export function useStudents(
   page: number,
@@ -55,6 +55,19 @@ export function useUpdateStudent() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['student', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}
+
+export function useAddGuardianToStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ studentId, data }: { studentId: number; data: Omit<GuardianFormData, 'fiscalData'> }) =>
+      studentsApi.addGuardianToStudent(studentId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['student', variables.studentId] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+      queryClient.invalidateQueries({ queryKey: ['guardians'] });
     },
   });
 }

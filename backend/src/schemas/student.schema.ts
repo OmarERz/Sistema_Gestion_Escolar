@@ -17,7 +17,7 @@ const emailOrEmpty = z.preprocess(
  * - Link existing: provide `id` + `relationship` + `isPrimary` (personal fields ignored)
  * - Create new: provide all personal fields + `relationship` + `isPrimary`
  */
-const guardianInputSchema = z.object({
+export const guardianInputSchema = z.object({
   id: z.number().int().positive().optional(),
   firstName: z.string().max(100).optional(),
   lastName1: z.string().max(100).optional(),

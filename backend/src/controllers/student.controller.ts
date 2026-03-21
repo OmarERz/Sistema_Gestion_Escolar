@@ -7,7 +7,7 @@
 import { Request, Response } from 'express';
 import * as studentService from '../services/student.service.js';
 import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
-import type { CreateStudentInput, UpdateStudentInput } from '../schemas/student.schema.js';
+import type { CreateStudentInput, UpdateStudentInput, GuardianInput } from '../schemas/student.schema.js';
 
 const SORTABLE_FIELDS = ['firstName', 'lastName1', 'enrollmentDate', 'totalDebt', 'status', 'group'];
 
@@ -50,6 +50,13 @@ export async function getAcademicHistory(req: Request<{ id: string }>, res: Resp
   const id = parseInt(req.params.id, 10);
   const history = await studentService.getAcademicHistory(id);
   successResponse(res, history);
+}
+
+export async function addGuardian(req: Request<{ id: string }>, res: Response) {
+  const studentId = parseInt(req.params.id, 10);
+  const input = req.body as GuardianInput;
+  const student = await studentService.addGuardian(studentId, input);
+  successResponse(res, student, 201);
 }
 
 // Placeholder endpoints — will be connected in later steps

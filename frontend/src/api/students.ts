@@ -1,6 +1,6 @@
 import apiClient from './client';
 import type { PaginatedResponse, ApiResponse } from '@/types/common';
-import type { Student, StudentFormData, UpdateStudentData, AcademicHistory } from '@/types/student';
+import type { Student, StudentFormData, UpdateStudentData, AcademicHistory, GuardianFormData } from '@/types/student';
 
 export async function getStudents(
   page: number,
@@ -38,6 +38,17 @@ export async function createStudent(input: StudentFormData): Promise<Student> {
 
 export async function updateStudent(id: number, input: UpdateStudentData): Promise<Student> {
   const { data } = await apiClient.put<ApiResponse<Student>>(`/students/${id}`, input);
+  return data.data;
+}
+
+export async function addGuardianToStudent(
+  studentId: number,
+  input: Omit<GuardianFormData, 'fiscalData'>,
+): Promise<Student> {
+  const { data } = await apiClient.post<ApiResponse<Student>>(
+    `/students/${studentId}/guardians`,
+    input,
+  );
   return data.data;
 }
 
