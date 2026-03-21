@@ -362,8 +362,9 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
           dueDay = 10;
         }
 
-        // Build month list (handles wrap-around, e.g. Aug=8 to Jun=6)
-        const months = buildMonthList(startMonth, endMonth);
+        // Build month list up to current month (handles wrap-around, e.g. Aug=8 to Jun=6)
+        const currentMonth = new Date().getMonth() + 1;
+        const months = buildMonthList(startMonth, endMonth, currentMonth);
 
         for (const month of months) {
           const existing = await tx.payment.findFirst({
@@ -386,6 +387,9 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
             : cycle.endDate.getFullYear();
 
           const finalAmount = calculateFinalAmount(amount, 0, 0);
+          const dueDate = new Date(year, month - 1, dueDay);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
 
           await tx.payment.create({
             data: {
@@ -398,8 +402,8 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
               surchargePercent: 0,
               finalAmount,
               amountPaid: 0,
-              status: 'pending',
-              dueDate: new Date(year, month - 1, dueDay),
+              status: dueDate < today ? 'overdue' : 'pending',
+              dueDate,
             },
           });
           generated++;
@@ -447,17 +451,35 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
   return { generated, skipped };
 }
 
-/** Build list of months from start to end, wrapping around December if needed */
-function buildMonthList(start: number, end: number): number[] {
-  const months: number[] = [];
+/**
+ * Build list of months from start to end, wrapping around December if needed.
+ * If upToMonth is provided, only include months up to (and including) that month
+ * in the traversal order from start. This prevents generating future months.
+ */
+function buildMonthList(start: number, end: number, upToMonth?: number): number[] {
+  const allMonths: number[] = [];
   if (start <= end) {
-    for (let m = start; m <= end; m++) months.push(m);
+    for (let m = start; m <= end; m++) allMonths.push(m);
   } else {
     // Wrap around: e.g. 8→12 then 1→6
-    for (let m = start; m <= 12; m++) months.push(m);
-    for (let m = 1; m <= end; m++) months.push(m);
+    for (let m = start; m <= 12; m++) allMonths.push(m);
+    for (let m = 1; m <= end; m++) allMonths.push(m);
   }
-  return months;
+
+  if (upToMonth === undefined) return allMonths;
+
+  // Cut off at upToMonth in traversal order
+  const cutIndex = allMonths.indexOf(upToMonth);
+  if (cutIndex === -1) {
+    // Current month not in range — check if all months are past or all are future
+    // If range wraps and current month is between end+1 and start-1, all months are past
+    if (start > end && upToMonth > end && upToMonth < start) return allMonths;
+    // Non-wrapping: if current month > end, all months are past
+    if (start <= end && upToMonth > end) return allMonths;
+    // Otherwise current month is before the range starts — no months to generate
+    return [];
+  }
+  return allMonths.slice(0, cutIndex + 1);
 }
 
 export async function resetStudentPayments(studentId: number) {

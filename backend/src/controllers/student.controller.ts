@@ -62,7 +62,7 @@ export async function addGuardian(req: Request<{ id: string }>, res: Response) {
 export async function getPayments(req: Request<{ id: string }>, res: Response) {
   const studentId = parseInt(req.params.id, 10);
   const pagination = parsePagination(req.query as { page?: string; limit?: string });
-  const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, ['createdAt', 'dueDate', 'status', 'finalAmount'], 'createdAt', 'desc');
+  const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, ['createdAt', 'dueDate', 'status', 'finalAmount', 'amountPaid', 'paymentConceptId', 'appliesToMonth'], 'createdAt', 'desc');
 
   const filters = {
     studentId,

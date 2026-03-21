@@ -30,6 +30,7 @@ import {
   Checkbox,
   Autocomplete,
   TablePagination,
+  TableSortLabel,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -191,6 +192,8 @@ export default function StudentDetail() {
 
   // Payments tab state
   const [paymentPage, setPaymentPage] = useState(0);
+  const [paymentSortBy, setPaymentSortBy] = useState<string>('createdAt');
+  const [paymentSortDir, setPaymentSortDir] = useState<'asc' | 'desc'>('desc');
   const [paymentDetailOpen, setPaymentDetailOpen] = useState<Payment | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const [paymentEditOpen, setPaymentEditOpen] = useState(false);
@@ -201,7 +204,7 @@ export default function StudentDetail() {
     id: number;
     label: string;
   } | null>(null);
-  const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20);
+  const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20, paymentSortBy, paymentSortDir);
   const { data: debtBreakdownResponse } = useDebtBreakdown(studentId);
   const bulkGenerateMutation = useBulkGenerate();
   const resetPaymentsMutation = useResetStudentPayments();
@@ -713,12 +716,48 @@ export default function StudentDetail() {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Concepto</TableCell>
-                    <TableCell>Mes</TableCell>
-                    <TableCell>Monto Final</TableCell>
-                    <TableCell>Pagado</TableCell>
+                    {([
+                      ['paymentConceptId', 'Concepto'],
+                      ['appliesToMonth', 'Mes'],
+                      ['finalAmount', 'Monto Final'],
+                      ['amountPaid', 'Pagado'],
+                    ] as const).map(([key, label]) => (
+                      <TableCell key={key}>
+                        <TableSortLabel
+                          active={paymentSortBy === key}
+                          direction={paymentSortBy === key ? paymentSortDir : 'asc'}
+                          onClick={() => {
+                            if (paymentSortBy === key) {
+                              setPaymentSortDir(paymentSortDir === 'asc' ? 'desc' : 'asc');
+                            } else {
+                              setPaymentSortBy(key);
+                              setPaymentSortDir('asc');
+                            }
+                            setPaymentPage(0);
+                          }}
+                        >
+                          {label}
+                        </TableSortLabel>
+                      </TableCell>
+                    ))}
                     <TableCell>Saldo</TableCell>
-                    <TableCell>Estado</TableCell>
+                    <TableCell>
+                      <TableSortLabel
+                        active={paymentSortBy === 'status'}
+                        direction={paymentSortBy === 'status' ? paymentSortDir : 'asc'}
+                        onClick={() => {
+                          if (paymentSortBy === 'status') {
+                            setPaymentSortDir(paymentSortDir === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setPaymentSortBy('status');
+                            setPaymentSortDir('asc');
+                          }
+                          setPaymentPage(0);
+                        }}
+                      >
+                        Estado
+                      </TableSortLabel>
+                    </TableCell>
                     <TableCell>Acciones</TableCell>
                   </TableRow>
                 </TableHead>

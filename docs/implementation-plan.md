@@ -350,7 +350,7 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Steps 1-4
 
-### Step 10: Payments Module
+### Step 10: Payments Module ✅
 Divided into 8 sub-modules (10A–10H), implemented sequentially.
 
 #### Sub-module 10A: Prisma Migration + Debt Service
@@ -477,7 +477,7 @@ graph TD
     S3 --> S9[Step 9: Payment Concepts ✅]
     S4 --> S9
 
-    S7 --> S10[Step 10: Payments]
+    S7 --> S10[Step 10: Payments ✅]
     S9 --> S10
 
     S7 --> S11[Step 11: Uniforms]
@@ -510,8 +510,8 @@ graph TD
 | 6 ✅ | Create groups, see student counts, filter by cycle |
 | 7 ✅ | Create students with guardians, search, view detail, duplicate guardian detection works |
 | 8 ✅ | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students, edit relationship/isPrimary, add guardian to existing student (new or link existing) |
-| 9 | Create/edit payment concepts via UI |
-| 10 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
+| 9 ✅ | Create/edit payment concepts via UI |
+| 10 ✅ | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
 | 11 | Create uniform orders, mark as delivered, verify catalog CRUD |
 | 12 | Process withdrawal, verify debt snapshot, student status changes, history preserved |
 | 13 | `npm run test --workspace=backend` — all ~15-20 tests pass for debt, payment calculation, recurring rules, withdrawal |
