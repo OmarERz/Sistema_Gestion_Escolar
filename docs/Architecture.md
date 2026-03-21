@@ -63,7 +63,7 @@ The system follows a **layered architecture** (n-tier) with three distinct tiers
 │                                         ▼                   │
 │                                ┌──────────────────┐        │
 │                                │ MySQL 8           │        │
-│                                │ (15 tables)       │        │
+│                                │ (16 tables)       │        │
 │                                └──────────────────┘        │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -189,6 +189,8 @@ sequenceDiagram
 
 ### 4.2 Payment Registration Flow
 
+Two modes: "Pay existing debt" (add transaction to pending payment) and "New payment" (create payment + first transaction).
+
 ```mermaid
 sequenceDiagram
     actor Admin
@@ -199,33 +201,47 @@ sequenceDiagram
 
     Admin->>FE: Navigate to /pagos
     Admin->>FE: Search and select student
-    FE->>API: GET /api/students/:id/debt
-    API->>SVC: debtService.getBreakdown()
-    SVC->>DB: Query pending/partial payments
-    DB-->>SVC: Payment records
-    SVC-->>API: Debt breakdown by concept
-    API-->>FE: { totalDebt, concepts: [...] }
-    FE->>FE: Display current debt summary
 
-    Admin->>FE: Select payment concept & month
-    Admin->>FE: Enter discount/surcharge (optional)
-    FE->>FE: Auto-calculate final amount<br/>final = base × (1 - discount%) × (1 + surcharge%)
+    alt Mode: Pay existing debt
+        FE->>API: GET /api/payments?studentId=X&status=pending,partial,overdue
+        API-->>FE: Pending payments list
+        FE->>FE: Display payments table with balances
 
-    Admin->>FE: Confirm payment
-    FE->>API: POST /api/payments
-    API->>API: Validate request (Zod)
-    API->>SVC: paymentService.register()
+        Admin->>FE: Select payment, enter amount,<br/>method, receipt (optional)
+        FE->>FE: Validate amount <= remaining balance
+        FE->>API: POST /api/payments/:id/transactions
+        API->>API: Validate request (Zod)
+        API->>SVC: paymentService.addTransaction()
 
-    SVC->>DB: BEGIN TRANSACTION
-    SVC->>DB: UPDATE payment SET status='paid',<br/>amount_paid, payment_date, payment_method
-    SVC->>SVC: debtService.recalculate(studentId)
-    SVC->>DB: UPDATE student.total_debt
-    SVC->>DB: COMMIT
+        SVC->>DB: BEGIN TRANSACTION
+        SVC->>DB: INSERT payment_transaction
+        SVC->>SVC: recalculateAmountPaid(paymentId)
+        SVC->>DB: UPDATE payment.amount_paid, status
+        SVC->>SVC: recalculateStudentDebt(studentId)
+        SVC->>DB: UPDATE student.total_debt
+        SVC->>DB: COMMIT
 
-    SVC-->>API: Updated payment
-    API-->>FE: 200 { success: true, data: payment }
-    FE->>FE: Show success notification
-    FE->>FE: Refresh debt display
+    else Mode: New payment
+        Admin->>FE: Select concept, month (if monthly),<br/>enter discount%/surcharge%
+        FE->>FE: Auto-calculate finalAmount<br/>base × (1 - discount%) × (1 + surcharge%)
+        Admin->>FE: Enter amount to pay, method, receipt
+        FE->>API: POST /api/payments (with transaction data)
+        API->>API: Validate request (Zod)
+        API->>SVC: paymentService.create()
+
+        SVC->>DB: BEGIN TRANSACTION
+        SVC->>DB: INSERT payment (pending)
+        SVC->>DB: INSERT payment_transaction
+        SVC->>SVC: recalculateAmountPaid(paymentId)
+        SVC->>DB: UPDATE payment.amount_paid, status
+        SVC->>SVC: recalculateStudentDebt(studentId)
+        SVC->>DB: UPDATE student.total_debt
+        SVC->>DB: COMMIT
+    end
+
+    SVC-->>API: Payment + transaction
+    API-->>FE: 200/201 { success: true, data: payment }
+    FE->>FE: Success dialog: another payment<br/>for same student? Yes→stay / No→history
 ```
 
 ### 4.3 Student Withdrawal Flow

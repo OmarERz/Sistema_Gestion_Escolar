@@ -203,7 +203,7 @@ model PaymentMethod {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  payments Payment[]
+  transactions PaymentTransaction[]
 
   @@map("payment_methods")
 }
@@ -256,21 +256,34 @@ model Payment {
   amountPaid       Decimal       @default(0.00) @map("amount_paid") @db.Decimal(10, 2)
   status           PaymentStatus @default(pending)
   dueDate          DateTime?     @map("due_date") @db.Date
-  paymentDate      DateTime?     @map("payment_date") @db.Date
-  paymentMethodId  Int?          @map("payment_method_id")
-  receiptNumber    String?       @map("receipt_number") @db.VarChar(50)
   notes            String?       @db.Text
   createdAt        DateTime      @default(now()) @map("created_at")
   updatedAt        DateTime      @updatedAt @map("updated_at")
 
-  student        Student        @relation(fields: [studentId], references: [id])
-  paymentConcept PaymentConcept @relation(fields: [paymentConceptId], references: [id])
-  schoolCycle    SchoolCycle    @relation(fields: [schoolCycleId], references: [id])
-  paymentMethod  PaymentMethod? @relation(fields: [paymentMethodId], references: [id])
+  student        Student              @relation(fields: [studentId], references: [id])
+  paymentConcept PaymentConcept       @relation(fields: [paymentConceptId], references: [id])
+  schoolCycle    SchoolCycle          @relation(fields: [schoolCycleId], references: [id])
+  transactions   PaymentTransaction[]
   uniforms       Uniform[]
 
   @@unique([studentId, paymentConceptId, schoolCycleId, appliesToMonth], name: "unique_payment_per_concept_month")
   @@map("payments")
+}
+
+model PaymentTransaction {
+  id              Int      @id @default(autoincrement())
+  paymentId       Int      @map("payment_id")
+  amount          Decimal  @db.Decimal(10, 2)
+  paymentMethodId Int      @map("payment_method_id")
+  paymentDate     DateTime @map("payment_date") @db.Date
+  receiptNumber   String?  @map("receipt_number") @db.VarChar(50)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  payment       Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentMethod PaymentMethod @relation(fields: [paymentMethodId], references: [id])
+
+  @@map("payment_transactions")
 }
 
 model UniformCatalog {

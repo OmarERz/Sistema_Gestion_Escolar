@@ -33,7 +33,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 
 ---
 
-## Database Schema (15 Tables)
+## Database Schema (16 Tables)
 
 | Table | Purpose | Key Relationships |
 |-------|---------|-------------------|
@@ -46,8 +46,9 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | `student_academic_history` | Grade history per cycle | One per student per cycle |
 | `payment_concepts` | Payment type definitions | Referenced by payments |
 | `recurring_payment_rules` | Auto-generation rules | Defines when payments are created |
-| `payment_methods` | Standardized payment method catalog | Referenced by payments |
-| `payments` | Individual payment records | Belongs to student + concept + cycle + method |
+| `payment_methods` | Standardized payment method catalog | Referenced by payment transactions |
+| `payments` | Individual payment/debt records | Belongs to student + concept + cycle; has transactions |
+| `payment_transactions` | Individual payment installments/receipts | Belongs to payment + method; tracks each partial payment |
 | `uniform_catalog` | Available uniform items | Referenced by uniform orders |
 | `uniforms` | Uniform orders/purchases | Belongs to student + catalog item |
 | `withdrawals` | Student withdrawal records | One per student (optional) |
@@ -121,28 +122,29 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | POST | `/api/payment-methods` | Create payment method |
 | PUT | `/api/payment-methods/:id` | Update payment method |
 
-### Payments (5 endpoints)
+### Payments (11 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/payments` | List payments (filter by student, status, cycle, month) |
-| POST | `/api/payments` | Register a payment |
-| PUT | `/api/payments/:id` | Update payment |
+| POST | `/api/payments` | Create a payment (optionally with first transaction) |
+| GET | `/api/payments/:id` | Payment detail with transactions |
+| PUT | `/api/payments/:id` | Update payment fields (baseAmount, discount, surcharge, dueDate, notes, status) |
+| DELETE | `/api/payments/:id` | Delete payment and all its transactions |
+| PATCH | `/api/payments/:id/cancel` | Cancel payment (status → cancelled, excluded from debt) |
+| POST | `/api/payments/:id/transactions` | Add installment/payment transaction |
+| DELETE | `/api/payments/transactions/:id` | Delete a single transaction (recalculates amountPaid) |
 | POST | `/api/payments/bulk-generate` | Auto-generate mandatory payments for student/cycle |
 | DELETE | `/api/payments/student/:id/reset` | Reset all payments for a student (sets debt to 0) |
+| POST | `/api/payments/check-overdue` | Scan and mark overdue payments |
 
-### Recurring Payment Rules (4 endpoints)
+### Recurring Payment Rules (5 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/recurring-rules` | List rules |
 | POST | `/api/recurring-rules` | Create rule |
 | PUT | `/api/recurring-rules/:id` | Update rule |
-| DELETE | `/api/recurring-rules/:id` | Delete rule |
-| POST | `/api/recurring-rules/generate` | Manually trigger payment generation |
-
-### Overdue Check (1 endpoint)
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/payments/check-overdue` | Scan and mark overdue payments |
+| DELETE | `/api/recurring-rules/:id` | Delete rule (only if inactive) |
+| POST | `/api/recurring-rules/generate` | Manually trigger payment generation for current month |
 
 ### Uniforms (6 endpoints)
 | Method | Path | Description |
@@ -163,7 +165,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 ### Reports (TBD)
 _Excel report endpoints to be defined once export requirements are finalized._
 
-**Total: ~51 endpoints + reports TBD**
+**Total: ~57 endpoints + reports TBD**
 
 ---
 
@@ -196,26 +198,56 @@ _Excel report endpoints to be defined once export requirements are finalized._
 
 ## Key Business Logic
 
+### Payment Model Architecture
+- **Payment** = a debt/charge record (concept, amounts, status). Does NOT store payment method or receipt.
+- **PaymentTransaction** = an individual installment/payment against a Payment. Stores amount, paymentMethodId, receiptNumber, paymentDate, notes. Each payment can have multiple transactions (partial payments).
+- `Payment.amountPaid` = SUM of all its PaymentTransactions.
+
 ### Debt Calculation
 ```
-Total Debt = SUM(final_amount - amount_paid) WHERE status IN ('pending', 'partial')
+Total Debt = SUM(final_amount - amount_paid) WHERE status IN ('pending', 'partial', 'overdue')
 ```
-Recalculated and cached in `students.total_debt` after every payment change.
+Recalculated and cached in `students.total_debt` after every payment/transaction change. Cancelled payments are excluded.
 
 ### Payment Amount Calculation
 ```
 final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_percent / 100)
 ```
 
+### Payment Status Logic
+- `paid`: amountPaid >= finalAmount
+- `partial`: amountPaid > 0 && amountPaid < finalAmount
+- `overdue`: dueDate < today && amountPaid < finalAmount
+- `pending`: default (no payment, not overdue)
+- `cancelled`: manual only (excluded from debt)
+
+### Bulk Payment Generation (on enrollment)
+1. Find all active mandatory payment concepts
+2. For each concept, check if a RecurringPaymentRule exists for that concept+cycle
+3. If rule exists: use rule's startMonth, endMonth, dueDay
+4. If no rule: use cycle date range for months, day 10 as default dueDay
+5. Monthly concepts → one payment per month; one-time concepts → single payment
+6. Skip duplicates (unique constraint: studentId + conceptId + cycleId + appliesToMonth)
+
 ### Recurring Payment Generation
 1. Check active rules where current month is within `start_month` to `end_month`
-2. For each rule where today >= `generation_day`, create pending payments for all active students
+2. For each rule, create pending payments for all active students in the cycle
 3. Skip if payment already exists for that student/concept/cycle/month
 4. Set `due_date` based on `due_day` from the rule
 
 ### Overdue Detection
 - Payments with `status = 'pending'` and `due_date < TODAY` are auto-marked as `overdue`
-- Runs on app startup and can be triggered manually
+- Can be triggered manually from PaymentHistory page
+
+### Overpayment Prevention
+- When adding a PaymentTransaction, the amount cannot exceed the remaining balance (finalAmount - amountPaid)
+- Validated both in frontend (disabled submit) and backend (400 error)
+
+### Payment Operations
+- **Edit**: modify baseAmount, discountPercent, surchargePercent, dueDate, notes (recalculates finalAmount and status)
+- **Cancel**: set status to cancelled (excluded from debt, transactions preserved as history)
+- **Delete**: removes payment and all its transactions (cascade), recalculates debt
+- **Delete Transaction**: removes a single installment, recalculates amountPaid and status
 
 ### Withdrawal Process
 1. Snapshot current debt → `pending_debt_at_withdrawal`
@@ -224,9 +256,9 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 4. Preserve all academic and financial history (no deletes)
 
 ### Payment Reset
-- Deletes all payment records for a student
+- Deletes all payment records (and their transactions) for a student
 - Sets `total_debt = 0`
-- Requires admin confirmation
+- Requires admin confirmation (any student, no restrictions)
 
 ---
 
@@ -319,20 +351,52 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 **Dependencies:** Steps 1-4
 
 ### Step 10: Payments Module
-- **Backend:**
-  - Payment CRUD endpoints
-  - Bulk generation of mandatory payments on enrollment
-  - Debt calculation service (`debt.service.ts`)
-  - Recurring payment rules CRUD + auto-generation logic
-  - Overdue check logic (marks past-due payments)
-  - Payment reset endpoint (delete all + set debt to 0)
-- **Frontend:**
-  - PaymentForm: student search → concept select → discount/surcharge → auto-calculate → register
-  - PaymentHistory: filterable DataGrid
-  - Wire up DebtBadge in StudentList
-  - Payment tab in StudentDetail
-  - RecurringRulesManagement page (under settings)
-  - "Reset payments" button with ConfirmDialog
+Divided into 8 sub-modules (10A–10H), implemented sequentially.
+
+#### Sub-module 10A: Prisma Migration + Debt Service
+- Add `payment_transactions` table to Prisma schema (tracks individual installments)
+- Remove `paymentMethodId` and `receiptNumber` from `payments` table (moved to transactions)
+- Create `debt.service.ts`: calculateFinalAmount, determinePaymentStatus, recalculateAmountPaid, recalculateStudentDebt
+
+#### Sub-module 10B: Backend Payment CRUD
+- Full Payment CRUD: list (with filters), getById, create, update, remove, cancel
+- PaymentTransaction endpoints: addTransaction, removeTransaction
+- bulkGenerateMandatory: auto-generate payments on enrollment (uses RecurringPaymentRule config if exists, fallback to cycle range + day 10)
+- resetStudentPayments: delete all payments + set debt to 0
+- checkOverdue: mark pending payments with past due dates as overdue
+- Replace student controller placeholders (getPayments, getDebt)
+- Hook bulkGenerateMandatory into student enrollment flow
+
+#### Sub-module 10C: Backend Recurring Rules CRUD
+- CRUD for recurring_payment_rules (delete only if inactive)
+- generatePayments: create pending payments for current month for all active students in cycle
+
+#### Sub-module 10D: Frontend Types + API + Hooks
+- TypeScript interfaces for Payment, PaymentTransaction, RecurringPaymentRule, DebtBreakdown
+- Axios API clients and React Query hooks for all endpoints
+
+#### Sub-module 10E: Frontend PaymentForm (`/pagos`)
+- Two explicit modes (tabs): "Pagar deuda existente" and "Nuevo pago"
+- Pagar deuda: student search → pending payments table → select payment → enter installment amount (max = remaining balance) → payment method → receipt → save → creates PaymentTransaction
+- Nuevo pago: student search → concept select → discount/surcharge → auto-calc finalAmount → payment amount → method → receipt → save → creates Payment + first Transaction
+- Post-save dialog: "¿Otro pago al mismo alumno?" → Yes: keep student / No: navigate to history
+
+#### Sub-module 10F: Frontend PaymentHistory (`/pagos/historial`)
+- Filterable table: student search, status dropdown, cycle dropdown
+- Status chips (color-coded), sortable columns, pagination
+- "Verificar Vencidos" button (triggers overdue check)
+- Click row → detail dialog: payment info + transactions table (with delete per transaction) + edit/cancel/delete payment actions
+
+#### Sub-module 10G: Frontend StudentDetail Payments Tab
+- Debt summary card (total) + breakdown table by concept (total owed, paid, balance)
+- Paginated payments table (click for detail with transactions)
+- "Generar Pagos Obligatorios" button + "Resetear Pagos" button (with irreversible ConfirmDialog)
+
+#### Sub-module 10H: Frontend RecurringRulesManagement (`/configuracion/pagos-recurrentes`)
+- Sortable/paginated table with concept and cycle names, month names in Spanish
+- Create/edit dialog with concept + cycle dropdowns, day inputs, month selects, optional amount override
+- Delete only inactive rules (with irreversible confirmation)
+- "Generar Pagos Ahora" button (current month, shows result count)
 
 **Dependencies:** Steps 7, 9 (payments reference students + concepts)
 
@@ -410,7 +474,7 @@ graph TD
 
     S7 --> S8[Step 8: Guardians Module ✅]
 
-    S3 --> S9[Step 9: Payment Concepts]
+    S3 --> S9[Step 9: Payment Concepts ✅]
     S4 --> S9
 
     S7 --> S10[Step 10: Payments]

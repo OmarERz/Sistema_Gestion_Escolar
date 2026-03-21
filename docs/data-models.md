@@ -140,12 +140,20 @@ erDiagram
         decimal amount_paid
         enum status
         date due_date
-        date payment_date
-        int payment_method_id FK
-        varchar receipt_number
         text notes
         datetime created_at
         datetime updated_at
+    }
+
+    PAYMENT_TRANSACTIONS {
+        int id PK
+        int payment_id FK
+        decimal amount
+        int payment_method_id FK
+        date payment_date
+        varchar receipt_number
+        text notes
+        datetime created_at
     }
 
     UNIFORM_CATALOG {
@@ -214,7 +222,8 @@ erDiagram
     GUARDIANS ||--o{ STUDENT_GUARDIAN : "linked via"
     GUARDIANS ||--o| FISCAL_DATA : "may have"
 
-    PAYMENT_METHODS ||--o{ PAYMENTS : "paid via"
+    PAYMENTS ||--o{ PAYMENT_TRANSACTIONS : "has many"
+    PAYMENT_METHODS ||--o{ PAYMENT_TRANSACTIONS : "paid via"
     PAYMENT_CONCEPTS ||--o{ PAYMENTS : "categorizes"
     PAYMENT_CONCEPTS ||--o{ RECURRING_PAYMENT_RULES : "defines"
 
@@ -302,7 +311,7 @@ Core entity representing an enrolled student. Contains personal data, current gr
 - `school_cycle_id` references `school_cycles.id`
 
 **Business Rules:**
-- `total_debt` is a cached value, recalculated whenever payments change: `SUM(final_amount - amount_paid) WHERE status IN ('pending', 'partial')`
+- `total_debt` is a cached value, recalculated whenever payments or transactions change: `SUM(final_amount - amount_paid) WHERE status IN ('pending', 'partial', 'overdue')`
 - When status changes to `withdrawn`, a withdrawal record must be created
 - Student records are never physically deleted (soft delete via status)
 
@@ -432,7 +441,7 @@ Catalog of standardized payment methods. Used for filtering payments by method a
 
 **Business Rules:**
 - Default seed data: Efectivo, Transferencia, Tarjeta
-- Deactivated methods cannot be selected for new payments but existing payments retain the reference
+- Deactivated methods cannot be selected for new transactions but existing transactions retain the reference
 
 ---
 
@@ -490,7 +499,7 @@ Configurable rules that determine when payment records are automatically generat
 
 ### 11. payments
 
-Individual payment records for each student. Tracks amounts, discounts, surcharges, status, and due dates.
+Individual payment records for each student. Tracks amounts, discounts, surcharges, status, and due dates. Actual money received is tracked via `payment_transactions`.
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
@@ -503,29 +512,57 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 | `discount_percent` | DECIMAL(5,2) | No | `0.00` | Discount percentage applied |
 | `surcharge_percent` | DECIMAL(5,2) | No | `0.00` | Surcharge/late fee percentage |
 | `final_amount` | DECIMAL(10,2) | No | — | Calculated: `base × (1 - discount%) × (1 + surcharge%)` |
-| `amount_paid` | DECIMAL(10,2) | No | `0.00` | Actual amount paid so far |
+| `amount_paid` | DECIMAL(10,2) | No | `0.00` | Cached sum of all transaction amounts |
 | `status` | ENUM | No | `'pending'` | Payment status (see enum below) |
 | `due_date` | DATE | Yes | `NULL` | Payment deadline date |
-| `payment_date` | DATE | Yes | `NULL` | Date payment was received |
-| `payment_method_id` | INT (FK) | Yes | `NULL` | References `payment_methods.id` |
-| `receipt_number` | VARCHAR(50) | Yes | `NULL` | Receipt or reference number |
 | `notes` | TEXT | Yes | `NULL` | Additional notes |
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
 | `updated_at` | DATETIME | No | Auto-update | Last modification timestamp |
 
 **Constraints:**
 - UNIQUE: (`student_id`, `payment_concept_id`, `school_cycle_id`, `applies_to_month`) — prevents duplicate payments
-- Foreign keys to `students`, `payment_concepts`, `school_cycles`, `payment_methods`
+- Foreign keys to `students`, `payment_concepts`, `school_cycles`
 
 **Business Rules:**
-- `final_amount = base_amount × (1 - discount_percent/100) × (1 + surcharge_percent/100)`
+- `final_amount = base_amount × (1 - discount_percent/100) × (1 + surcharge_percent/100)` (multiplicative formula)
+- `amount_paid` is a cached value recalculated as `SUM(transaction.amount)` whenever transactions change
+- Status is auto-determined: `paid` (amountPaid >= finalAmount), `overdue` (dueDate < today and not fully paid), `partial` (amountPaid > 0 and < finalAmount), `pending` (default). `cancelled` is set only manually.
 - When `status` changes, `student.total_debt` must be recalculated
-- `overdue` status is auto-set when `due_date` passes and status is still `pending`
-- The "reset" operation deletes all payment records for a student and sets `total_debt = 0`
+- `overdue` status is also set via periodic check (checkOverdue) for pending payments past due date
+- The "reset" operation deletes all payment records (cascading to transactions) and sets `total_debt = 0`
+- Overpayment is blocked: transaction amount cannot exceed remaining balance (`finalAmount - amountPaid`)
 
 ---
 
-### 12. uniform_catalog
+### 12. payment_transactions
+
+Individual installment/payment records against a payment. Supports partial payments and tracks which method was used for each transaction.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | INT | No | AUTO_INCREMENT | Primary key |
+| `payment_id` | INT (FK) | No | — | References `payments.id` |
+| `amount` | DECIMAL(10,2) | No | — | Amount of this transaction |
+| `payment_method_id` | INT (FK) | No | — | References `payment_methods.id` |
+| `payment_date` | DATE | No | — | Date payment was received |
+| `receipt_number` | VARCHAR(50) | Yes | `NULL` | Receipt or reference number |
+| `notes` | TEXT | Yes | `NULL` | Additional notes |
+| `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
+
+**Constraints:**
+- `payment_id` references `payments.id` (CASCADE on delete)
+- `payment_method_id` references `payment_methods.id` (RESTRICT on delete)
+
+**Business Rules:**
+- When a transaction is created or deleted, `payment.amount_paid` is recalculated as `SUM(amount)`
+- After recalculating `amount_paid`, the payment status is re-determined and `student.total_debt` is updated
+- Transaction amount must not exceed remaining balance (`payment.final_amount - payment.amount_paid`)
+- Deleting a payment cascades to all its transactions
+- Transactions are immutable (no update, only create/delete)
+
+---
+
+### 13. uniform_catalog
 
 Reference table for available uniform items and their prices.
 
@@ -545,7 +582,7 @@ Reference table for available uniform items and their prices.
 
 ---
 
-### 13. uniforms
+### 14. uniforms
 
 Individual uniform orders/purchases linked to students. Tracks order details and delivery status.
 
@@ -577,7 +614,7 @@ Individual uniform orders/purchases linked to students. Tracks order details and
 
 ---
 
-### 14. withdrawals
+### 15. withdrawals
 
 Records the withdrawal (baja) of a student, including the reason and a snapshot of their debt at the time.
 
@@ -602,7 +639,7 @@ Records the withdrawal (baja) of a student, including the reason and a snapshot 
 
 ---
 
-### 15. users
+### 16. users
 
 System users for authentication. Phase 1 supports a single admin account.
 
@@ -686,7 +723,8 @@ System users for authentication. Phase 1 supports a single admin account.
 | students → payments | 1:N | All payment records for a student |
 | students → uniforms | 1:N | All uniform orders for a student |
 | students → withdrawals | 1:0..1 | Optional withdrawal record |
-| payment_methods → payments | 1:N | Method used for payment |
+| payments → payment_transactions | 1:N | Individual installments/partial payments |
+| payment_methods → payment_transactions | 1:N | Method used for each transaction |
 | payment_concepts → payments | 1:N | Concept categorizes payments |
 | payment_concepts → recurring_payment_rules | 1:N | Rules define auto-generation |
 | uniform_catalog → uniforms | 1:N | Catalog item referenced in orders |
