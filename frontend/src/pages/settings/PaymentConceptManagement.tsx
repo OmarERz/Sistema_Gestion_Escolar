@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import NumberField from '@/components/common/NumberField';
 import {
   Box,
   Typography,
@@ -283,15 +284,15 @@ export default function PaymentConceptManagement() {
             <MenuItem value="mandatory">Obligatorio</MenuItem>
             <MenuItem value="optional">Opcional</MenuItem>
           </TextField>
-          <TextField
+          <NumberField
             fullWidth
             label="Monto por Defecto"
             placeholder="ej. 1500.00"
-            type="number"
             value={formData.defaultAmount || ''}
-            onChange={(e) => setFormData({ ...formData, defaultAmount: parseFloat(e.target.value) || 0 })}
+            onValueChange={(v) => setFormData({ ...formData, defaultAmount: parseFloat(v) || 0 })}
             margin="normal"
-            inputProps={{ min: 0, step: '0.01' }}
+
+            min={0}
           />
           <FormControlLabel
             control={

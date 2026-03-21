@@ -149,6 +149,14 @@ const theme = createTheme({
           '& .MuiOutlinedInput-root': {
             backgroundColor: 'rgba(15, 22, 41, 0.6)',
           },
+          // Hide native number spinners — custom stepper buttons are used instead
+          '& input[type=number]::-webkit-inner-spin-button, & input[type=number]::-webkit-outer-spin-button': {
+            WebkitAppearance: 'none',
+            margin: 0,
+          },
+          '& input[type=number]': {
+            MozAppearance: 'textfield',
+          },
         },
       },
     },
