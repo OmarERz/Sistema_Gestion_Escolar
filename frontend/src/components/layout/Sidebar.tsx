@@ -15,6 +15,7 @@ import {
   Home,
   People,
   Person,
+  SupervisedUserCircle,
   Groups,
   PersonRemove,
   Payment,
@@ -50,6 +51,7 @@ const navSections: NavSection[] = [
     title: 'Matrícula',
     items: [
       { label: 'Alumnos', path: '/alumnos', icon: <People /> },
+      { label: 'Tutores', path: '/tutores', icon: <SupervisedUserCircle /> },
       { label: 'Grupos', path: '/grupos', icon: <Groups /> },
       { label: 'Bajas', path: '/bajas', icon: <PersonRemove /> },
     ],

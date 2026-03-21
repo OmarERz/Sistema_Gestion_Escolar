@@ -94,15 +94,16 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | GET | `/api/students/:id/debt` | Detailed debt breakdown |
 | GET | `/api/students/:id/academic-history` | Academic history |
 
-### Guardians (7 endpoints)
+### Guardians (8 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/guardians` | List guardians (search, status filter: active/inactive) |
 | POST | `/api/guardians` | Create guardian |
-| GET | `/api/guardians/:id` | Guardian detail |
+| GET | `/api/guardians/:id` | Guardian detail (includes linked students with group and guardian count) |
 | PUT | `/api/guardians/:id` | Update guardian |
 | POST | `/api/guardians/:id/fiscal-data` | Create/update fiscal data |
 | DELETE | `/api/guardians/:id/students/:studentId` | Unlink student from guardian (guard: min 1 guardian per student) |
+| PATCH | `/api/guardians/:id/students/:studentId` | Update relationship and isPrimary (auto-unsets other primaries) |
 | GET | `/api/guardians/check-duplicate` | Check email/phone existence |
 
 ### Payment Concepts (3 endpoints)
@@ -161,7 +162,7 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 ### Reports (TBD)
 _Excel report endpoints to be defined once export requirements are finalized._
 
-**Total: ~49 endpoints + reports TBD**
+**Total: ~50 endpoints + reports TBD**
 
 ---
 
@@ -295,15 +296,17 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 
 **Dependencies:** Step 6 (students reference groups)
 
-### Step 8: Guardians Module
+### Step 8: Guardians Module ✅
 - **Backend:**
   - Extend `GET /api/guardians` with `?status=active|inactive` filter (computed: active = has at least one student with `status='active'`)
   - Add `DELETE /api/guardians/:id/students/:studentId` to unlink a student (guard: student must have more than 1 guardian)
+  - Add `PATCH /api/guardians/:id/students/:studentId` to update relationship and isPrimary (auto-unsets other primaries)
 - **Frontend:**
-  - GuardianList (`/tutores`): paginated searchable table (name, phone, email, linked students), active/inactive badge, status filter (default: active), server-side sorting
-  - GuardianDetail (`/tutores/:id`): tabbed view (Info with editable fields, Datos Fiscales with editable fields, Alumnos Vinculados with unlink option)
-  - Sidebar: add "Tutores" entry after "Alumnos" in Matrícula section
-  - StudentList: change status filter default to show only active students
+  - GuardianList (`/tutores`): paginated searchable table (name, phone, email, linked student count), active/inactive badge, status filter (default: active), server-side sorting
+  - GuardianDetail (`/tutores/:id`): tabbed view (Info editable via dialog, Datos Fiscales editable via dialog, Alumnos Vinculados table with unlink — disabled when student has only 1 guardian)
+  - StudentDetail: edit guardian dialog extended with relationship select and isPrimary checkbox; guardians sorted primary-first
+  - Sidebar: "Tutores" entry added after "Alumnos" in Matrícula section
+  - StudentList: status filter defaults to active students only
 
 **Dependencies:** Step 7 (guardians reference students)
 
@@ -403,7 +406,7 @@ graph TD
     S5 --> S6[Step 6: Groups ✅]
     S6 --> S7[Step 7: Students & Guardians ✅]
 
-    S7 --> S8[Step 8: Guardians Module]
+    S7 --> S8[Step 8: Guardians Module ✅]
 
     S3 --> S9[Step 9: Payment Concepts]
     S4 --> S9
@@ -440,7 +443,7 @@ graph TD
 | 5 ✅ | Create/edit/activate school cycles via UI |
 | 6 ✅ | Create groups, see student counts, filter by cycle |
 | 7 ✅ | Create students with guardians, search, view detail, duplicate guardian detection works |
-| 8 | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students |
+| 8 ✅ | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students, edit relationship/isPrimary |
 | 9 | Create/edit payment concepts via UI |
 | 10 | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
 | 11 | Create uniform orders, mark as delivered, verify catalog CRUD |

@@ -8,6 +8,22 @@ export interface Guardian {
   phoneSecondary?: string | null;
   address?: string | null;
   fiscalData?: FiscalData | null;
+  students?: GuardianStudentLink[];
+}
+
+/** Linked student as returned by GET /api/guardians and GET /api/guardians/:id */
+export interface GuardianStudentLink {
+  student: {
+    id: number;
+    firstName: string;
+    lastName1: string;
+    lastName2?: string | null;
+    status: string;
+    group?: { id: number; name: string; level: string } | null;
+    _count?: { guardians: number };
+  };
+  relationship: string;
+  isPrimary: boolean;
 }
 
 export interface FiscalData {

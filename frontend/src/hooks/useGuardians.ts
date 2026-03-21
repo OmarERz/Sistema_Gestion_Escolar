@@ -6,12 +6,13 @@ export function useGuardians(
   page: number,
   limit: number,
   search?: string,
+  status?: string,
   sortBy?: string,
   sortDir?: 'asc' | 'desc',
 ) {
   return useQuery({
-    queryKey: ['guardians', page, limit, search, sortBy, sortDir],
-    queryFn: () => guardiansApi.getGuardians(page, limit, search, sortBy, sortDir),
+    queryKey: ['guardians', page, limit, search, status, sortBy, sortDir],
+    queryFn: () => guardiansApi.getGuardians(page, limit, search, status, sortBy, sortDir),
     staleTime: 30000,
   });
 }
@@ -66,6 +67,40 @@ export function useUpsertFiscalData() {
       guardiansApi.upsertFiscalData(guardianId, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['guardian', variables.guardianId] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}
+
+export function useUnlinkStudent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ guardianId, studentId }: { guardianId: number; studentId: number }) =>
+      guardiansApi.unlinkStudent(guardianId, studentId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['guardian', variables.guardianId] });
+      queryClient.invalidateQueries({ queryKey: ['guardians'] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}
+
+export function useUpdateGuardianLink() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      guardianId,
+      studentId,
+      data,
+    }: {
+      guardianId: number;
+      studentId: number;
+      data: { relationship?: string; isPrimary?: boolean };
+    }) => guardiansApi.updateGuardianLink(guardianId, studentId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['guardian', variables.guardianId] });
+      queryClient.invalidateQueries({ queryKey: ['guardians'] });
+      queryClient.invalidateQueries({ queryKey: ['student', variables.studentId] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
     },
   });

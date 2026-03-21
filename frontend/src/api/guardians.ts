@@ -19,11 +19,13 @@ export async function getGuardians(
   page: number,
   limit: number,
   search?: string,
+  status?: string,
   sortBy?: string,
   sortDir?: 'asc' | 'desc',
 ): Promise<PaginatedResponse<Guardian>> {
   const params: Record<string, unknown> = { page, limit };
   if (search) params.search = search;
+  if (status) params.status = status;
   if (sortBy) params.sortBy = sortBy;
   if (sortDir) params.sortDir = sortDir;
 
@@ -68,4 +70,16 @@ export async function upsertFiscalData(
   input: FiscalDataFormData,
 ): Promise<void> {
   await apiClient.post(`/guardians/${guardianId}/fiscal-data`, input);
+}
+
+export async function unlinkStudent(guardianId: number, studentId: number): Promise<void> {
+  await apiClient.delete(`/guardians/${guardianId}/students/${studentId}`);
+}
+
+export async function updateGuardianLink(
+  guardianId: number,
+  studentId: number,
+  input: { relationship?: string; isPrimary?: boolean },
+): Promise<void> {
+  await apiClient.patch(`/guardians/${guardianId}/students/${studentId}`, input);
 }

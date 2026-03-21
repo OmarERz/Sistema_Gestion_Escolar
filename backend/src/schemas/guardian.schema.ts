@@ -37,6 +37,12 @@ export const fiscalDataSchema = z.object({
   fiscalAddressZip: z.string().min(1, 'Zip code is required').max(10),
 });
 
+export const updateStudentLinkSchema = z.object({
+  relationship: z.string().min(1).max(50).optional(),
+  isPrimary: z.boolean().optional(),
+});
+
 export type CreateGuardianInput = z.infer<typeof createGuardianSchema>;
 export type UpdateGuardianInput = z.infer<typeof updateGuardianSchema>;
 export type FiscalDataInput = z.infer<typeof fiscalDataSchema>;
+export type UpdateStudentLinkInput = z.infer<typeof updateStudentLinkSchema>;

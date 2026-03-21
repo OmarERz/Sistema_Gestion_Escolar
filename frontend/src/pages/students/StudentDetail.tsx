@@ -26,6 +26,8 @@ import {
   Alert,
   Divider,
   Collapse,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import {
   ArrowBack,
@@ -37,7 +39,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useSnackbar } from 'notistack';
 import { useStudentById, useStudentAcademicHistory, useUpdateStudent } from '@/hooks/useStudents';
-import { useUpdateGuardian, useUpsertFiscalData } from '@/hooks/useGuardians';
+import { useUpdateGuardian, useUpsertFiscalData, useUpdateGuardianLink } from '@/hooks/useGuardians';
 import { useSchoolCycles } from '@/hooks/useSchoolCycles';
 import { useGroups } from '@/hooks/useGroups';
 import type {
@@ -117,7 +119,12 @@ export default function StudentDetail() {
     address: null,
   });
   const [editGuardianError, setEditGuardianError] = useState('');
+  const [editLinkData, setEditLinkData] = useState<{ relationship: string; isPrimary: boolean }>({
+    relationship: '',
+    isPrimary: false,
+  });
   const updateGuardianMutation = useUpdateGuardian();
+  const updateLinkMutation = useUpdateGuardianLink();
 
   // Edit fiscal data dialog state
   const [editFiscalOpen, setEditFiscalOpen] = useState(false);
@@ -197,6 +204,10 @@ export default function StudentDetail() {
       phoneSecondary: g.phoneSecondary ?? null,
       address: g.address ?? null,
     });
+    setEditLinkData({
+      relationship: link.relationship,
+      isPrimary: link.isPrimary,
+    });
     setEditGuardianError('');
     setEditGuardianOpen(true);
   };
@@ -220,6 +231,19 @@ export default function StudentDetail() {
         id: editingGuardianLink.guardian.id,
         data: editGuardianData,
       });
+
+      // Update link data if relationship or isPrimary changed
+      const linkChanged =
+        editLinkData.relationship !== editingGuardianLink.relationship ||
+        editLinkData.isPrimary !== editingGuardianLink.isPrimary;
+      if (linkChanged) {
+        await updateLinkMutation.mutateAsync({
+          guardianId: editingGuardianLink.guardian.id,
+          studentId,
+          data: editLinkData,
+        });
+      }
+
       enqueueSnackbar('Tutor actualizado', { variant: 'success' });
       setEditGuardianOpen(false);
     } catch {
@@ -389,7 +413,7 @@ export default function StudentDetail() {
         <Typography variant="h6" sx={{ mb: 2 }}>
           Tutores
         </Typography>
-        {student.guardians?.map((link) => {
+        {[...(student.guardians ?? [])].sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0)).map((link) => {
           const g = link.guardian;
           const gFullName = [g.firstName, g.lastName1, g.lastName2].filter(Boolean).join(' ');
           const isExpanded = expandedFiscal[g.id] ?? false;
@@ -765,15 +789,46 @@ export default function StudentDetail() {
               sx={{ gridColumn: 'span 2' }}
             />
           </Box>
+          <Divider sx={{ my: 2 }} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
+            <TextField
+              select
+              label="Relación"
+              value={editLinkData.relationship}
+              onChange={(e) =>
+                setEditLinkData((prev) => ({ ...prev, relationship: e.target.value }))
+              }
+              fullWidth
+            >
+              <MenuItem value="Madre">Madre</MenuItem>
+              <MenuItem value="Padre">Padre</MenuItem>
+              <MenuItem value="Tutor">Tutor</MenuItem>
+              <MenuItem value="Abuelo/a">Abuelo/a</MenuItem>
+              <MenuItem value="Tío/a">Tío/a</MenuItem>
+              <MenuItem value="Otro">Otro</MenuItem>
+            </TextField>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={editLinkData.isPrimary}
+                  onChange={(e) =>
+                    setEditLinkData((prev) => ({ ...prev, isPrimary: e.target.checked }))
+                  }
+                />
+              }
+              label="Tutor Principal"
+              sx={{ alignSelf: 'center' }}
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditGuardianOpen(false)}>Cancelar</Button>
           <Button
             variant="contained"
             onClick={handleSaveGuardian}
-            disabled={updateGuardianMutation.isPending}
+            disabled={updateGuardianMutation.isPending || updateLinkMutation.isPending}
           >
-            {updateGuardianMutation.isPending ? 'Guardando...' : 'Guardar'}
+            {updateGuardianMutation.isPending || updateLinkMutation.isPending ? 'Guardando...' : 'Guardar'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import * as guardianService from '../services/guardian.service.js';
 import { successResponse, paginatedResponse, parsePagination, parseSort } from '../utils/apiResponse.js';
-import type { CreateGuardianInput, UpdateGuardianInput, FiscalDataInput } from '../schemas/guardian.schema.js';
+import type { CreateGuardianInput, UpdateGuardianInput, FiscalDataInput, UpdateStudentLinkInput } from '../schemas/guardian.schema.js';
 
 const SORTABLE_FIELDS = ['firstName', 'lastName1', 'phone', 'email'];
 
@@ -14,8 +14,10 @@ export async function list(req: Request, res: Response) {
   const pagination = parsePagination(req.query as { page?: string; limit?: string });
   const sort = parseSort(req.query as { sortBy?: string; sortDir?: string }, SORTABLE_FIELDS, 'lastName1');
 
+  const statusParam = req.query.status as string | undefined;
   const filters = {
     search: req.query.search as string | undefined,
+    status: (statusParam === 'active' || statusParam === 'inactive' ? statusParam : undefined) as 'active' | 'inactive' | undefined,
   };
 
   const { data, total } = await guardianService.list(pagination, filters, sort);
@@ -54,4 +56,19 @@ export async function upsertFiscalData(req: Request<{ id: string }>, res: Respon
   const input = req.body as FiscalDataInput;
   const fiscalData = await guardianService.upsertFiscalData(guardianId, input);
   successResponse(res, fiscalData);
+}
+
+export async function unlinkStudent(req: Request<{ id: string; studentId: string }>, res: Response) {
+  const guardianId = parseInt(req.params.id, 10);
+  const studentId = parseInt(req.params.studentId, 10);
+  await guardianService.unlinkStudent(guardianId, studentId);
+  successResponse(res, { message: 'Student unlinked successfully' });
+}
+
+export async function updateStudentLink(req: Request<{ id: string; studentId: string }>, res: Response) {
+  const guardianId = parseInt(req.params.id, 10);
+  const studentId = parseInt(req.params.studentId, 10);
+  const input = req.body as UpdateStudentLinkInput;
+  await guardianService.updateStudentLink(guardianId, studentId, input);
+  successResponse(res, { message: 'Link updated successfully' });
 }

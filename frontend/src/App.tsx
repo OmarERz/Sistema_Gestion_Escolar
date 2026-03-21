@@ -15,6 +15,8 @@ import Dashboard from '@/pages/Dashboard';
 import StudentList from '@/pages/students/StudentList';
 import StudentCreate from '@/pages/students/StudentCreate';
 import StudentDetail from '@/pages/students/StudentDetail';
+import GuardianList from '@/pages/guardians/GuardianList';
+import GuardianDetail from '@/pages/guardians/GuardianDetail';
 import GroupList from '@/pages/groups/GroupList';
 import PaymentForm from '@/pages/payments/PaymentForm';
 import PaymentHistory from '@/pages/payments/PaymentHistory';
@@ -62,6 +64,8 @@ export default function App() {
                     <Route path="alumnos" element={<StudentList />} />
                     <Route path="alumnos/nuevo" element={<StudentCreate />} />
                     <Route path="alumnos/:id" element={<StudentDetail />} />
+                    <Route path="tutores" element={<GuardianList />} />
+                    <Route path="tutores/:id" element={<GuardianDetail />} />
                     <Route path="grupos" element={<GroupList />} />
                     <Route path="bajas" element={<WithdrawalHistory />} />
                     <Route path="bajas/nueva" element={<WithdrawalForm />} />
