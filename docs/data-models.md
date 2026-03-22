@@ -217,7 +217,7 @@ erDiagram
     STUDENTS ||--o{ STUDENT_ACADEMIC_HISTORY : "tracks"
     STUDENTS ||--o{ PAYMENTS : "owes"
     STUDENTS ||--o{ UNIFORMS : "orders"
-    STUDENTS ||--o| WITHDRAWALS : "may have"
+    STUDENTS ||--o{ WITHDRAWALS : "may have"
 
     GUARDIANS ||--o{ STUDENT_GUARDIAN : "linked via"
     GUARDIANS ||--o| FISCAL_DATA : "may have"
@@ -629,13 +629,14 @@ Records the withdrawal (baja) of a student, including the reason and a snapshot 
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
 
 **Constraints:**
-- `student_id` is UNIQUE (one withdrawal per student)
 - Foreign keys to `students`, `school_cycles`
+- A student may have multiple withdrawal records (e.g., after re-enrollment and subsequent withdrawal)
 
 **Business Rules:**
 - Creating a withdrawal changes `student.status` to `'withdrawn'`
 - `pending_debt_at_withdrawal` is a snapshot — it does NOT change if payments are later modified
 - Academic history and payment records are preserved (no cascading deletes)
+- Re-enrollment preserves the withdrawal record for history and creates `withdrawn` + `reenrolled` entries in academic history
 
 ---
 
@@ -690,6 +691,7 @@ System users for authentication. Phase 1 supports a single admin account.
 | `promoted` | Successfully promoted to next grade |
 | `withdrawn` | Withdrawn during this cycle |
 | `repeated` | Repeating this grade |
+| `reenrolled` | Re-enrolled after a previous withdrawal |
 
 ### PaymentConceptType
 
@@ -722,7 +724,7 @@ System users for authentication. Phase 1 supports a single admin account.
 | students → student_academic_history | 1:N | One record per cycle |
 | students → payments | 1:N | All payment records for a student |
 | students → uniforms | 1:N | All uniform orders for a student |
-| students → withdrawals | 1:0..1 | Optional withdrawal record |
+| students → withdrawals | 1:0..N | Withdrawal records (multiple possible after re-enrollment) |
 | payments → payment_transactions | 1:N | Individual installments/partial payments |
 | payment_methods → payment_transactions | 1:N | Method used for each transaction |
 | payment_concepts → payments | 1:N | Concept categorizes payments |

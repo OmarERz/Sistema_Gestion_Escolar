@@ -83,6 +83,12 @@ export async function resetStudentPayments(req: Request<{ id: string }>, res: Re
   successResponse(res, result);
 }
 
+export async function payAllDebts(req: Request<{ id: string }>, res: Response) {
+  const studentId = parseInt(req.params.id, 10);
+  const result = await paymentService.payAllDebts(studentId);
+  successResponse(res, result);
+}
+
 export async function checkOverdue(_req: Request, res: Response) {
   const result = await paymentService.checkOverdue();
   successResponse(res, result);

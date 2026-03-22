@@ -23,6 +23,7 @@ import PaymentHistory from '@/pages/payments/PaymentHistory';
 import UniformRegistration from '@/pages/uniforms/UniformRegistration';
 import WithdrawalHistory from '@/pages/withdrawals/WithdrawalHistory';
 import WithdrawalForm from '@/pages/withdrawals/WithdrawalForm';
+import Reenrollment from '@/pages/withdrawals/Reenrollment';
 import SchoolCycleManagement from '@/pages/settings/SchoolCycleManagement';
 import PaymentConceptManagement from '@/pages/settings/PaymentConceptManagement';
 import RecurringRulesManagement from '@/pages/settings/RecurringRulesManagement';
@@ -69,6 +70,7 @@ export default function App() {
                     <Route path="grupos" element={<GroupList />} />
                     <Route path="bajas" element={<WithdrawalHistory />} />
                     <Route path="bajas/nueva" element={<WithdrawalForm />} />
+                    <Route path="reinscripciones" element={<Reenrollment />} />
 
                     {/* Finanzas */}
                     <Route path="pagos" element={<PaymentForm />} />

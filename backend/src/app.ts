@@ -14,6 +14,7 @@ import paymentMethodRoutes from './routes/paymentMethod.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import recurringRuleRoutes from './routes/recurringRule.routes.js';
 import uniformRoutes from './routes/uniform.routes.js';
+import withdrawalRoutes from './routes/withdrawal.routes.js';
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use('/api/payment-methods', paymentMethodRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/recurring-rules', recurringRuleRoutes);
 app.use('/api/uniforms', uniformRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);

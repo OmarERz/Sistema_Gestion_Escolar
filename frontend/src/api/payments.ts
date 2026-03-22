@@ -74,6 +74,11 @@ export async function resetStudentPayments(studentId: number): Promise<void> {
   await apiClient.delete(`/payments/student/${studentId}/reset`);
 }
 
+export async function payAllDebts(studentId: number): Promise<{ settled: number }> {
+  const { data } = await apiClient.post<ApiResponse<{ settled: number }>>(`/payments/student/${studentId}/pay-all`);
+  return data.data;
+}
+
 export async function checkOverdue(): Promise<{ updated: number }> {
   const { data } = await apiClient.post<ApiResponse<{ updated: number }>>('/payments/check-overdue');
   return data.data;

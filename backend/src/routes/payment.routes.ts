@@ -18,6 +18,7 @@ router.post('/bulk-generate', validateRequest({ body: bulkGenerateSchema }), pay
 router.post('/check-overdue', paymentController.checkOverdue);
 router.delete('/transactions/:id', paymentController.removeTransaction);
 router.delete('/student/:id/reset', paymentController.resetStudentPayments);
+router.post('/student/:id/pay-all', paymentController.payAllDebts);
 
 // Payment CRUD
 router.get('/', paymentController.list);

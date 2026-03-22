@@ -27,6 +27,7 @@ enum AcademicStatus {
   promoted
   withdrawn
   repeated
+  reenrolled
 }
 
 enum PaymentConceptType {
@@ -118,7 +119,7 @@ model Student {
   academicHistories StudentAcademicHistory[]
   payments          Payment[]
   uniforms          Uniform[]
-  withdrawal        Withdrawal?
+  withdrawals       Withdrawal[]
 
   @@map("students")
 }
@@ -325,7 +326,7 @@ model Uniform {
 
 model Withdrawal {
   id                       Int      @id @default(autoincrement())
-  studentId                Int      @unique @map("student_id")
+  studentId                Int      @map("student_id")
   withdrawalDate           DateTime @map("withdrawal_date") @db.Date
   reason                   String   @db.Text
   pendingDebtAtWithdrawal  Decimal  @map("pending_debt_at_withdrawal") @db.Decimal(10, 2)

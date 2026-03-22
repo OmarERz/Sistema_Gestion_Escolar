@@ -287,6 +287,73 @@ sequenceDiagram
     FE->>FE: Navigate to withdrawal history
 ```
 
+### 4.3.1 Undo Withdrawal Flow
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend
+    participant API as Backend API
+    participant SVC as Services
+    participant DB as MySQL
+
+    Admin->>FE: Click "Deshacer Baja" on /bajas
+    FE->>FE: Show confirmation dialog
+    Admin->>FE: Confirm undo
+
+    FE->>API: POST /api/withdrawals/:id/undo
+    API->>SVC: withdrawalService.undoWithdrawal()
+
+    SVC->>DB: BEGIN TRANSACTION
+    SVC->>DB: UPDATE student SET status='active'
+    SVC->>DB: DELETE withdrawal record
+    SVC->>DB: COMMIT
+
+    API-->>FE: 200 { success: true }
+    FE->>FE: Show success notification
+```
+
+### 4.3.2 Re-enrollment Flow
+
+```mermaid
+sequenceDiagram
+    actor Admin
+    participant FE as Frontend
+    participant API as Backend API
+    participant SVC as Services
+    participant DB as MySQL
+
+    Admin->>FE: Navigate to /reinscripciones
+    Admin->>FE: Select withdrawn student
+    Admin->>FE: Select group, cycle, enrollment date
+    Admin->>FE: Confirm/modify guardians
+    FE->>FE: Check pending debts
+
+    alt Has pending debts
+        FE->>FE: Show debts table
+        Admin->>FE: Choose: keep debts or pay all
+        opt Pay all debts
+            FE->>API: POST /api/payments/student/:id/pay-all
+            API->>SVC: Create transaction per unpaid payment
+            SVC->>DB: INSERT transactions + recalculate debt
+        end
+    end
+
+    Admin->>FE: Confirm re-enrollment
+    FE->>API: POST /api/withdrawals/:id/reenroll
+    API->>SVC: withdrawalService.reenroll()
+
+    SVC->>DB: BEGIN TRANSACTION
+    SVC->>DB: UPDATE student (status, group, cycle, date)
+    SVC->>DB: Manage guardian links (remove/add)
+    SVC->>DB: INSERT academic_history (withdrawn)
+    SVC->>DB: INSERT academic_history (reenrolled)
+    SVC->>DB: COMMIT
+
+    API-->>FE: 200 { success: true, data: student }
+    FE->>FE: Navigate to /bajas
+```
+
 ### 4.4 Recurring Payment Generation Flow
 
 ```mermaid

@@ -54,6 +54,7 @@ const navSections: NavSection[] = [
       { label: 'Tutores', path: '/tutores', icon: <SupervisedUserCircle /> },
       { label: 'Grupos', path: '/grupos', icon: <Groups /> },
       { label: 'Bajas', path: '/bajas', icon: <PersonRemove /> },
+      { label: 'Reinscripciones', path: '/reinscripciones', icon: <School /> },
     ],
   },
   {

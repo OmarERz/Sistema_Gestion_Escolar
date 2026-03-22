@@ -500,6 +500,61 @@ export async function resetStudentPayments(studentId: number) {
 }
 
 /**
+ * Settle all pending debts for a student.
+ * Creates a transaction for each unpaid payment covering the remaining balance,
+ * using the first active payment method and today's date.
+ */
+export async function payAllDebts(studentId: number) {
+  const student = await prisma.student.findUnique({ where: { id: studentId } });
+  if (!student) {
+    throw new AppError(404, 'Student not found', 'STUDENT_NOT_FOUND');
+  }
+
+  // Find all unpaid payments
+  const unpaidPayments = await prisma.payment.findMany({
+    where: {
+      studentId,
+      status: { in: ['pending', 'partial', 'overdue'] },
+    },
+  });
+
+  if (unpaidPayments.length === 0) {
+    return { settled: 0 };
+  }
+
+  // Get first active payment method
+  const method = await prisma.paymentMethod.findFirst({
+    where: { isActive: true },
+    orderBy: { id: 'asc' },
+  });
+  if (!method) {
+    throw new AppError(400, 'No active payment method found', 'NO_PAYMENT_METHOD');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    for (const payment of unpaidPayments) {
+      const remaining = Number(payment.finalAmount) - Number(payment.amountPaid);
+      if (remaining <= 0) continue;
+
+      await tx.paymentTransaction.create({
+        data: {
+          paymentId: payment.id,
+          amount: remaining,
+          paymentMethodId: method.id,
+          paymentDate: new Date(),
+          notes: 'Saldado automáticamente',
+        },
+      });
+
+      await recalculateAmountPaid(payment.id, tx);
+    }
+
+    await recalculateStudentDebt(studentId, tx);
+    return { settled: unpaidPayments.length };
+  });
+}
+
+/**
  * Mark overdue payments: pending payments with dueDate < today become overdue.
  * Returns the number of payments updated and affected student IDs for debt recalculation.
  */

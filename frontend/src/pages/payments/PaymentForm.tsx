@@ -27,7 +27,7 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useStudents } from '@/hooks/useStudents';
-import { usePayments, useCreatePayment, useAddTransaction } from '@/hooks/usePayments';
+import { usePayments, useCreatePayment, useAddTransaction, usePayAllDebts, useResetStudentPayments } from '@/hooks/usePayments';
 import { usePaymentConcepts } from '@/hooks/usePaymentConcepts';
 import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 import { useSchoolCycles } from '@/hooks/useSchoolCycles';
@@ -94,6 +94,10 @@ function PayExistingDebt() {
   // Success dialog
   const [successOpen, setSuccessOpen] = useState(false);
 
+  // Pay-all and reset dialogs
+  const [confirmPayAllOpen, setConfirmPayAllOpen] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+
   const { data: studentsRes } = useStudents(1, 10, studentSearch || undefined, 'active');
   const students = studentsRes?.data ?? [];
 
@@ -107,6 +111,8 @@ function PayExistingDebt() {
   const methods = (methodsRes?.data ?? []).filter(m => m.isActive);
 
   const addTransactionMutation = useAddTransaction();
+  const payAllDebtsMutation = usePayAllDebts();
+  const resetPaymentsMutation = useResetStudentPayments();
 
   const handleSelectPayment = (payment: Payment) => {
     // Calculate remaining from the payment being clicked, not from stale state
@@ -255,6 +261,28 @@ function PayExistingDebt() {
                 </Table>
               </TableContainer>
             )}
+
+            {/* Action buttons */}
+            {pendingPayments.length > 0 && (
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  onClick={() => setConfirmPayAllOpen(true)}
+                  disabled={payAllDebtsMutation.isPending}
+                >
+                  {payAllDebtsMutation.isPending ? 'Pagando...' : 'Pagar Todo'}
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  onClick={() => setConfirmResetOpen(true)}
+                  disabled={resetPaymentsMutation.isPending}
+                >
+                  Resetear Pagos
+                </Button>
+              </Box>
+            )}
           </CardContent>
         </Card>
       )}
@@ -351,6 +379,68 @@ function PayExistingDebt() {
           </Button>
           <Button variant="contained" onClick={() => setSuccessOpen(false)}>
             Sí, otro pago
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm pay-all dialog */}
+      <Dialog open={confirmPayAllOpen} onClose={() => setConfirmPayAllOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Pagar Todo</DialogTitle>
+        <DialogContent>
+          <Alert severity="info" sx={{ mt: 1 }}>
+            Se registrará un abono por el monto restante de cada pago pendiente, parcial o vencido. Se utilizará el primer método de pago activo.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmPayAllOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={payAllDebtsMutation.isPending}
+            onClick={async () => {
+              if (!selectedStudent) return;
+              try {
+                const result = await payAllDebtsMutation.mutateAsync(selectedStudent.id);
+                enqueueSnackbar(`Se saldaron ${result.settled} pago(s)`, { variant: 'success' });
+                setConfirmPayAllOpen(false);
+                setSelectedPayment(null);
+              } catch {
+                enqueueSnackbar('Error al saldar pagos', { variant: 'error' });
+              }
+            }}
+          >
+            {payAllDebtsMutation.isPending ? 'Procesando...' : 'Confirmar Pagar Todo'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm reset dialog */}
+      <Dialog open={confirmResetOpen} onClose={() => setConfirmResetOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Resetear Pagos</DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mt: 1 }}>
+            Se eliminarán TODOS los pagos y transacciones de este alumno. La deuda quedará en $0. Esta acción es irreversible.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmResetOpen(false)}>Cancelar</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={resetPaymentsMutation.isPending}
+            onClick={async () => {
+              if (!selectedStudent) return;
+              try {
+                await resetPaymentsMutation.mutateAsync(selectedStudent.id);
+                enqueueSnackbar('Pagos reseteados', { variant: 'success' });
+                setConfirmResetOpen(false);
+                setSelectedPayment(null);
+              } catch {
+                enqueueSnackbar('Error al resetear pagos', { variant: 'error' });
+              }
+            }}
+          >
+            {resetPaymentsMutation.isPending ? 'Procesando...' : 'Confirmar Reset'}
           </Button>
         </DialogActions>
       </Dialog>

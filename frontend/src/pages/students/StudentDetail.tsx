@@ -56,6 +56,7 @@ import {
   useDebtBreakdown,
   useBulkGenerate,
   useResetStudentPayments,
+  usePayAllDebts,
   useRemoveTransaction,
   useUpdatePayment,
   useDeletePayment,
@@ -205,6 +206,7 @@ export default function StudentDetail() {
   const [paymentSortDir, setPaymentSortDir] = useState<'asc' | 'desc'>('desc');
   const [paymentDetailOpen, setPaymentDetailOpen] = useState<Payment | null>(null);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [confirmPayAllOpen, setConfirmPayAllOpen] = useState(false);
   const [paymentEditOpen, setPaymentEditOpen] = useState(false);
   const [paymentEditForm, setPaymentEditForm] = useState<UpdatePaymentFormData>({});
   const [paymentEditError, setPaymentEditError] = useState('');
@@ -217,6 +219,7 @@ export default function StudentDetail() {
   const { data: debtBreakdownResponse } = useDebtBreakdown(studentId);
   const bulkGenerateMutation = useBulkGenerate();
   const resetPaymentsMutation = useResetStudentPayments();
+  const payAllDebtsMutation = usePayAllDebts();
   const removeTransactionMutation = useRemoveTransaction();
   const updatePaymentMutation = useUpdatePayment();
   const deletePaymentMutation = useDeletePayment();
@@ -859,6 +862,14 @@ export default function StudentDetail() {
           </Button>
           <Button
             variant="outlined"
+            color="success"
+            onClick={() => setConfirmPayAllOpen(true)}
+            disabled={payAllDebtsMutation.isPending}
+          >
+            {payAllDebtsMutation.isPending ? 'Pagando...' : 'Pagar Todo'}
+          </Button>
+          <Button
+            variant="outlined"
             color="error"
             onClick={() => setConfirmResetOpen(true)}
             disabled={resetPaymentsMutation.isPending}
@@ -1172,6 +1183,35 @@ export default function StudentDetail() {
               }}
             >
               {resetPaymentsMutation.isPending ? 'Procesando...' : 'Confirmar Reset'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Confirm pay-all dialog */}
+        <Dialog open={confirmPayAllOpen} onClose={() => setConfirmPayAllOpen(false)} maxWidth="xs" fullWidth>
+          <DialogTitle>Pagar Todo</DialogTitle>
+          <DialogContent>
+            <Alert severity="info" sx={{ mt: 1 }}>
+              Se registrará un abono por el monto restante de cada pago pendiente, parcial o vencido. Se utilizará el primer método de pago activo.
+            </Alert>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setConfirmPayAllOpen(false)}>Cancelar</Button>
+            <Button
+              variant="contained"
+              color="success"
+              disabled={payAllDebtsMutation.isPending}
+              onClick={async () => {
+                try {
+                  const result = await payAllDebtsMutation.mutateAsync(studentId);
+                  enqueueSnackbar(`Se saldaron ${result.settled} pago(s)`, { variant: 'success' });
+                  setConfirmPayAllOpen(false);
+                } catch {
+                  enqueueSnackbar('Error al saldar pagos', { variant: 'error' });
+                }
+              }}
+            >
+              {payAllDebtsMutation.isPending ? 'Procesando...' : 'Confirmar Pagar Todo'}
             </Button>
           </DialogActions>
         </Dialog>
@@ -1645,14 +1685,15 @@ export default function StudentDetail() {
               onChange={(e) =>
                 setEditStudentData((prev) => ({
                   ...prev,
-                  status: e.target.value as 'active' | 'inactive' | 'withdrawn',
+                  status: e.target.value as 'active' | 'inactive',
                 }))
               }
               fullWidth
+              disabled={student.status === 'withdrawn'}
+              helperText={student.status === 'withdrawn' ? 'Las bajas se gestionan desde la sección de Bajas' : undefined}
             >
               <MenuItem value="active">Activo</MenuItem>
               <MenuItem value="inactive">Inactivo</MenuItem>
-              <MenuItem value="withdrawn">Baja</MenuItem>
             </TextField>
           </Box>
           <TextField

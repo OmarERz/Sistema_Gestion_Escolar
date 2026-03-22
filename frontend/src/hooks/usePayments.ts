@@ -155,6 +155,19 @@ export function useResetStudentPayments() {
   });
 }
 
+export function usePayAllDebts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (studentId: number) => paymentsApi.payAllDebts(studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [STUDENT_PAYMENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [DEBT_KEY] });
+      queryClient.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
+}
+
 export function useCheckOverdue() {
   const queryClient = useQueryClient();
   return useMutation({

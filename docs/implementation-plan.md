@@ -156,16 +156,23 @@ Build Phase 1 of a school management system covering: student/guardian managemen
 | GET | `/api/uniforms/orders` | List orders (filter by student, delivery status) |
 | PATCH | `/api/uniforms/orders/:id/deliver` | Mark as delivered |
 
-### Withdrawals (2 endpoints)
+### Withdrawals (4 endpoints)
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/withdrawals` | List all withdrawals |
 | POST | `/api/withdrawals` | Process student withdrawal |
+| POST | `/api/withdrawals/:id/undo` | Undo withdrawal (restore to active) |
+| POST | `/api/withdrawals/:id/reenroll` | Re-enroll withdrawn student |
+
+### Payments (additional endpoint)
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/payments/student/:id/pay-all` | Settle all pending debts for student |
 
 ### Reports (TBD)
 _Excel report endpoints to be defined once export requirements are finalized._
 
-**Total: ~57 endpoints + reports TBD**
+**Total: ~60 endpoints + reports TBD**
 
 ---
 
@@ -181,8 +188,9 @@ _Excel report endpoints to be defined once export requirements are finalized._
 | `/tutores` | GuardianList | Matrícula | Searchable table with active/inactive badge; status filter (default: active) |
 | `/tutores/:id` | GuardianDetail | Matrícula | Tabbed view: Info (editable), Datos Fiscales (editable), Alumnos Vinculados |
 | `/grupos` | GroupList | Matrícula | Groups organized by cycle with student count |
-| `/bajas` | WithdrawalHistory | Matrícula | List of withdrawn students with details |
+| `/bajas` | WithdrawalHistory | Matrícula | List of withdrawn students with undo/reenroll actions |
 | `/bajas/nueva` | WithdrawalForm | Matrícula | Student search → reason → confirmation → process |
+| `/reinscripciones` | Reenrollment | Matrícula | Stepper: select student → group/cycle → guardians → debts → confirm |
 | `/pagos` | PaymentForm | Finanzas | Student search → concept selection → amount calculation → register |
 | `/pagos/historial` | PaymentHistory | Finanzas | Filterable payment table across all students |
 | `/uniformes` | UniformRegistration | Finanzas | Multi-item uniform order form per student |
@@ -192,7 +200,7 @@ _Excel report endpoints to be defined once export requirements are finalized._
 | `/configuracion/catalogo-uniformes` | UniformCatalog | Configuración | CRUD for uniform catalog items and prices |
 | `/configuracion/metodos-pago` | PaymentMethodManagement | Configuración | CRUD for payment methods (Efectivo, Transferencia, Tarjeta) |
 
-**Total: 18 pages**
+**Total: 19 pages**
 
 ---
 
@@ -254,6 +262,23 @@ final_amount = base_amount × (1 - discount_percent / 100) × (1 + surcharge_per
 2. Set student status → `withdrawn`
 3. Create withdrawal record
 4. Preserve all academic and financial history (no deletes)
+
+### Undo Withdrawal
+1. Restore student status → `active`
+2. Delete withdrawal record
+3. Student returns to same group and cycle (simple reversal)
+
+### Re-enrollment (Reinscripción)
+1. Select new group, school cycle, and enrollment date
+2. Confirm/modify guardian links (keep, remove, or add)
+3. Handle pending debts: keep existing debts or settle all (pay-all)
+4. In transaction: update student (status→active, group, cycle, date), manage guardians, create academic history entries (`withdrawn` + `reenrolled`)
+5. Withdrawal record is preserved for history
+
+### Pay All Debts
+- Creates a PaymentTransaction for each unpaid payment (pending/partial/overdue) with the remaining balance
+- Uses the first active payment method and today's date
+- Recalculates student totalDebt to 0
 
 ### Payment Reset
 - Deletes all payment records (and their transactions) for a student
@@ -436,11 +461,15 @@ Divided into 8 sub-modules (10A–10H), implemented sequentially.
 
 **Dependencies:** Step 7 (uniforms reference students)
 
-### Step 12: Withdrawals Module
-- **Backend:** Withdrawal processing (status change + debt snapshot), listing
+### Step 12: Withdrawals Module ✅
+- **Backend:** Withdrawal processing (status change + debt snapshot), listing, undo withdrawal, re-enrollment with academic history, pay-all debts endpoint
 - **Frontend:**
-  - WithdrawalForm: student search → reason → ConfirmDialog → process
-  - WithdrawalHistory: DataGrid with withdrawn students
+  - WithdrawalForm: student search → show current debt → reason → ConfirmDialog → process
+  - WithdrawalHistory: paginated/sortable table with search and cycle filters, undo and reenroll actions per row
+  - Reenrollment page (`/reinscripciones`): stepper flow — select student → group/cycle/date → manage guardians → debt check (keep/pay-all) → confirm
+  - StudentDetail: status edit restricted to active/inactive (withdrawn managed from Bajas), "Pagar Todo" button in Pagos tab
+  - PaymentForm: "Pagar Todo" and "Resetear Pagos" buttons in "Pagar deuda existente" tab
+  - Prisma migration: `reenrolled` added to `AcademicStatus` enum
 
 **Dependencies:** Step 10 (withdrawal snapshots debt)
 
@@ -506,8 +535,8 @@ graph TD
     S7 --> S10[Step 10: Payments ✅]
     S9 --> S10
 
-    S7 --> S11[Step 11: Uniforms]
-    S10 --> S12[Step 12: Withdrawals]
+    S7 --> S11[Step 11: Uniforms ✅]
+    S10 --> S12[Step 12: Withdrawals ✅]
 
     S10 --> S13[Step 13: Business Logic Tests]
     S12 --> S13
@@ -538,8 +567,8 @@ graph TD
 | 8 ✅ | List guardians with active/inactive badge, filter by status, view/edit detail with tabs, unlink students, edit relationship/isPrimary, add guardian to existing student (new or link existing) |
 | 9 ✅ | Create/edit payment concepts via UI |
 | 10 ✅ | Register payments, verify debt updates, test bulk generation, recurring rules, overdue detection, payment reset |
-| 11 | Create uniform orders, mark as delivered, verify catalog CRUD |
-| 12 | Process withdrawal, verify debt snapshot, student status changes, history preserved |
+| 11 ✅ | Create uniform orders, mark as delivered, verify catalog CRUD |
+| 12 ✅ | Process withdrawal, verify debt snapshot, student status changes, history preserved |
 | 13 | `npm run test --workspace=backend` — all ~15-20 tests pass for debt, payment calculation, recurring rules, withdrawal |
 | 14 | Dashboard shows correct metrics and charts |
 | 15 | `docker compose up` on macOS starts all services; full workflow works |
