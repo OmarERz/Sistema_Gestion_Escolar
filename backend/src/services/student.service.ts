@@ -128,6 +128,7 @@ export async function create(input: CreateStudentInput) {
         groupId: input.groupId ?? null,
         schoolCycleId: input.schoolCycleId,
         enrollmentDate: new Date(input.enrollmentDate),
+        scholarshipPercent: input.scholarshipPercent ?? 0,
         notes: input.notes ?? null,
         status: 'active',
         totalDebt: 0,
@@ -238,6 +239,7 @@ export async function update(id: number, input: UpdateStudentInput) {
   if (input.schoolCycleId !== undefined) data.schoolCycleId = input.schoolCycleId;
   if (input.enrollmentDate !== undefined) data.enrollmentDate = new Date(input.enrollmentDate);
   if (input.status !== undefined) data.status = input.status;
+  if (input.scholarshipPercent !== undefined) data.scholarshipPercent = input.scholarshipPercent;
   if (input.notes !== undefined) data.notes = input.notes ?? null;
 
   return prisma.student.update({

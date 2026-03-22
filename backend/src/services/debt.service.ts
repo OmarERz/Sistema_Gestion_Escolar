@@ -9,13 +9,14 @@ import prisma from '../config/database.js';
 
 type TxClient = Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>;
 
-/** Multiplicative formula: base * (1 - discount/100) * (1 + surcharge/100) */
+/** Multiplicative formula: base * (1 - discount/100) * (1 - scholarship/100) * (1 + surcharge/100) */
 export function calculateFinalAmount(
   baseAmount: number,
   discountPercent: number,
   surchargePercent: number,
+  scholarshipPercent: number = 0,
 ): number {
-  const result = baseAmount * (1 - discountPercent / 100) * (1 + surchargePercent / 100);
+  const result = baseAmount * (1 - discountPercent / 100) * (1 - scholarshipPercent / 100) * (1 + surchargePercent / 100);
   return Math.round(result * 100) / 100;
 }
 

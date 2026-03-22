@@ -108,8 +108,9 @@ model Student {
   schoolCycleId  Int           @map("school_cycle_id")
   enrollmentDate DateTime      @map("enrollment_date") @db.Date
   status         StudentStatus @default(active)
-  totalDebt      Decimal       @default(0.00) @map("total_debt") @db.Decimal(10, 2)
-  notes          String?       @db.Text
+  totalDebt           Decimal       @default(0.00) @map("total_debt") @db.Decimal(10, 2)
+  scholarshipPercent  Decimal       @default(0.00) @map("scholarship_percent") @db.Decimal(5, 2)
+  notes               String?       @db.Text
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
@@ -234,6 +235,7 @@ model RecurringPaymentRule {
   startMonth       Int      @map("start_month")
   endMonth         Int      @map("end_month")
   amount           Decimal? @db.Decimal(10, 2)
+  applyScholarship Boolean  @default(false) @map("apply_scholarship")
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -252,8 +254,10 @@ model Payment {
   appliesToMonth   Int?          @map("applies_to_month") @db.TinyInt
   baseAmount       Decimal       @map("base_amount") @db.Decimal(10, 2)
   discountPercent  Decimal       @default(0.00) @map("discount_percent") @db.Decimal(5, 2)
-  surchargePercent Decimal       @default(0.00) @map("surcharge_percent") @db.Decimal(5, 2)
-  finalAmount      Decimal       @map("final_amount") @db.Decimal(10, 2)
+  surchargePercent    Decimal       @default(0.00) @map("surcharge_percent") @db.Decimal(5, 2)
+  hasScholarship      Boolean       @default(false) @map("has_scholarship")
+  scholarshipPercent  Decimal       @default(0.00) @map("scholarship_percent") @db.Decimal(5, 2)
+  finalAmount         Decimal       @map("final_amount") @db.Decimal(10, 2)
   amountPaid       Decimal       @default(0.00) @map("amount_paid") @db.Decimal(10, 2)
   status           PaymentStatus @default(pending)
   dueDate          DateTime?     @map("due_date") @db.Date

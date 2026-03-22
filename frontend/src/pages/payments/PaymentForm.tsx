@@ -24,6 +24,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useStudents } from '@/hooks/useStudents';
@@ -464,6 +466,7 @@ function NewPayment() {
   const [surcharge, setSurcharge] = useState('0');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [hasScholarship, setHasScholarship] = useState(false);
 
   // Transaction fields
   const [txAmount, setTxAmount] = useState('');
@@ -500,13 +503,16 @@ function NewPayment() {
     }
   };
 
-  // Calculate final amount live
+  const studentScholarship = Number(selectedStudent?.scholarshipPercent ?? 0);
+
+  // Calculate final amount live (including scholarship if applicable)
   const finalAmount = useMemo(() => {
     const base = parseFloat(baseAmount) || 0;
     const disc = parseFloat(discount) || 0;
     const sur = parseFloat(surcharge) || 0;
-    return Math.round(base * (1 - disc / 100) * (1 + sur / 100) * 100) / 100;
-  }, [baseAmount, discount, surcharge]);
+    const schl = hasScholarship ? studentScholarship : 0;
+    return Math.round(base * (1 - disc / 100) * (1 - schl / 100) * (1 + sur / 100) * 100) / 100;
+  }, [baseAmount, discount, surcharge, hasScholarship, studentScholarship]);
 
   const handleSubmit = async () => {
     if (!selectedStudent) { setFormError('Selecciona un alumno'); return; }
@@ -538,6 +544,7 @@ function NewPayment() {
         baseAmount: parseFloat(baseAmount),
         discountPercent: parseFloat(discount) || 0,
         surchargePercent: parseFloat(surcharge) || 0,
+        hasScholarship,
         dueDate: dueDate || null,
         notes: notes || null,
         ...(txAmount && txAmt > 0 ? {
@@ -564,6 +571,7 @@ function NewPayment() {
     setSurcharge('0');
     setDueDate('');
     setNotes('');
+    setHasScholarship(false);
     setTxAmount('');
     setTxMethodId('');
     setTxDate(new Date().toISOString().slice(0, 10));
@@ -716,6 +724,25 @@ function NewPayment() {
                 sx={{ gridColumn: { md: '2 / -1' } }}
               />
             </Box>
+
+            {studentScholarship > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={hasScholarship}
+                      onChange={(e) => setHasScholarship(e.target.checked)}
+                    />
+                  }
+                  label={`Aplicar beca (${studentScholarship}%)`}
+                />
+                {hasScholarship && (
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    Se aplicará un descuento adicional de {studentScholarship}% por beca. Monto final: ${finalAmount.toFixed(2)}
+                  </Alert>
+                )}
+              </Box>
+            )}
           </CardContent>
         </Card>
       )}

@@ -267,6 +267,7 @@ export default function StudentDetail() {
       schoolCycleId: student.schoolCycleId,
       enrollmentDate: student.enrollmentDate.split('T')[0],
       status: student.status,
+      scholarshipPercent: Number(student.scholarshipPercent ?? 0),
       notes: student.notes ?? null,
     });
     setEditStudentError('');
@@ -539,6 +540,12 @@ export default function StudentDetail() {
         />
         <Chip label={groupLabel} variant="outlined" size="small" />
         <Chip label={student.schoolCycle?.name} variant="outlined" size="small" />
+        <Chip
+          label={Number(student.scholarshipPercent ?? 0) > 0 ? `Becado ${Number(student.scholarshipPercent)}%` : 'Sin beca'}
+          color={Number(student.scholarshipPercent ?? 0) > 0 ? 'info' : 'default'}
+          size="small"
+          variant={Number(student.scholarshipPercent ?? 0) > 0 ? 'filled' : 'outlined'}
+        />
         <Chip
           label={`Deuda: $${debt.toFixed(2)}`}
           color={debt > 0 ? 'error' : 'success'}
@@ -953,6 +960,12 @@ export default function StudentDetail() {
                       <Typography variant="body2" color="text.secondary">Recargo</Typography>
                       <Typography>{Number(p.surchargePercent)}%</Typography>
                     </Box>
+                    {p.hasScholarship && (
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">Beca</Typography>
+                        <Typography>{Number(p.scholarshipPercent)}%</Typography>
+                      </Box>
+                    )}
                     <Box>
                       <Typography variant="body2" color="text.secondary">Monto Final</Typography>
                       <Typography fontWeight={600}>{fmt(p.finalAmount)}</Typography>
@@ -1717,6 +1730,17 @@ export default function StudentDetail() {
               <MenuItem value="active">Activo</MenuItem>
               <MenuItem value="inactive">Inactivo</MenuItem>
             </TextField>
+            <NumberField
+              label="Porcentaje de Beca"
+              placeholder="ej. 50"
+              value={editStudentData.scholarshipPercent ?? 0}
+              onValueChange={(v) =>
+                setEditStudentData((prev) => ({ ...prev, scholarshipPercent: parseFloat(v) || 0 }))
+              }
+              fullWidth
+              min={0}
+              max={100}
+            />
           </Box>
           <TextField
             label="Anotaciones"

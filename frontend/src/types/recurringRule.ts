@@ -9,6 +9,7 @@ export interface RecurringPaymentRule {
   startMonth: number;
   endMonth: number;
   amount: number | null;
+  applyScholarship: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +23,7 @@ export interface RecurringRuleFormData {
   startMonth: number;
   endMonth: number;
   amount?: number | null;
+  applyScholarship?: boolean;
 }
 
 export interface GenerateResult {

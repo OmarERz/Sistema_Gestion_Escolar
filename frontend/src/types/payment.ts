@@ -22,6 +22,8 @@ export interface Payment {
   baseAmount: number;
   discountPercent: number;
   surchargePercent: number;
+  hasScholarship: boolean;
+  scholarshipPercent: number | string;
   finalAmount: number;
   amountPaid: number;
   status: 'pending' | 'paid' | 'partial' | 'overdue' | 'cancelled';
@@ -40,6 +42,7 @@ export interface PaymentFormData {
   baseAmount: number;
   discountPercent: number;
   surchargePercent: number;
+  hasScholarship?: boolean;
   dueDate?: string | null;
   notes?: string | null;
   transaction?: {

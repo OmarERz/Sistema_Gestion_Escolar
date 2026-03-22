@@ -223,14 +223,15 @@ sequenceDiagram
 
     else Mode: New payment
         Admin->>FE: Select concept, month (if monthly),<br/>enter discount%/surcharge%
-        FE->>FE: Auto-calculate finalAmount<br/>base × (1 - discount%) × (1 + surcharge%)
+        FE->>FE: Show "Aplicar beca" checkbox<br/>if student has scholarship > 0
+        FE->>FE: Auto-calculate finalAmount<br/>base × (1 - discount%) × (1 - scholarship%) × (1 + surcharge%)
         Admin->>FE: Enter amount to pay, method, receipt
         FE->>API: POST /api/payments (with transaction data)
         API->>API: Validate request (Zod)
         API->>SVC: paymentService.create()
 
         SVC->>DB: BEGIN TRANSACTION
-        SVC->>DB: INSERT payment (pending)
+        SVC->>DB: INSERT payment (pending)<br/>with has_scholarship, scholarship_percent
         SVC->>DB: INSERT payment_transaction
         SVC->>SVC: recalculateAmountPaid(paymentId)
         SVC->>DB: UPDATE payment.amount_paid, status

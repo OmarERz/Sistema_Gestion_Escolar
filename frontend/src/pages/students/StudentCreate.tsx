@@ -37,6 +37,7 @@ import { useCreateStudent } from '@/hooks/useStudents';
 import { useCheckDuplicateGuardian } from '@/hooks/useGuardians';
 import { getGuardianById } from '@/api/guardians';
 import type { StudentFormData, GuardianFormData, FiscalDataFormData, Guardian } from '@/types/student';
+import NumberField from '@/components/common/NumberField';
 
 const LEVEL_LABELS: Record<string, string> = {
   kinder: 'Kinder',
@@ -140,6 +141,7 @@ export default function StudentCreate() {
   const [groupId, setGroupId] = useState<number | ''>('');
   const [enrollmentDate, setEnrollmentDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [scholarshipPercent, setScholarshipPercent] = useState('0');
 
   // Guardians
   const [guardians, setGuardians] = useState<GuardianFormData[]>([createEmptyGuardian(true)]);
@@ -408,6 +410,7 @@ export default function StudentCreate() {
       groupId: groupId === '' ? null : groupId,
       schoolCycleId: schoolCycleId as number,
       enrollmentDate,
+      scholarshipPercent: parseFloat(scholarshipPercent) || 0,
       notes: notes.trim() || null,
       guardians: guardians.map((g) => ({
         ...g,
@@ -538,7 +541,16 @@ export default function StudentCreate() {
               slotProps={{ textField: { fullWidth: true, required: true } }}
             />
           </Box>
-          <Box sx={{ px: 1 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 2fr' }, gap: 2, mb: 2, px: 1 }}>
+            <NumberField
+              label="Porcentaje de Beca"
+              placeholder="ej. 50"
+              value={scholarshipPercent}
+              onValueChange={setScholarshipPercent}
+              fullWidth
+              min={0}
+              max={100}
+            />
             <TextField
               label="Anotaciones"
               placeholder="ej. Alumno con beca parcial"
@@ -546,7 +558,7 @@ export default function StudentCreate() {
               onChange={(e) => setNotes(e.target.value)}
               fullWidth
               multiline
-              rows={4}
+              rows={2}
             />
           </Box>
         </CardContent>

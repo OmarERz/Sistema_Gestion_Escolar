@@ -60,6 +60,8 @@ export interface Student {
   status: 'active' | 'inactive' | 'withdrawn';
   /** Prisma Decimal — arrives as string from API, use Number() for comparisons */
   totalDebt: string | number;
+  /** Prisma Decimal — scholarship percentage (0-100) */
+  scholarshipPercent: string | number;
   notes?: string | null;
   group?: {
     id: number;
@@ -102,6 +104,7 @@ export interface StudentFormData {
   groupId?: number | null;
   schoolCycleId: number;
   enrollmentDate: string;
+  scholarshipPercent?: number;
   notes?: string | null;
   guardians: GuardianFormData[];
 }
@@ -116,6 +119,7 @@ export interface UpdateStudentData {
   schoolCycleId?: number;
   enrollmentDate?: string;
   status?: 'active' | 'inactive' | 'withdrawn';
+  scholarshipPercent?: number;
   notes?: string | null;
 }
 

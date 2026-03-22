@@ -230,6 +230,7 @@ export default function StudentList() {
                           Estado
                         </TableSortLabel>
                       </TableCell>
+                      <TableCell>Beca</TableCell>
                       <TableCell>
                         <TableSortLabel
                           active={sortBy === 'totalDebt'}
@@ -245,6 +246,7 @@ export default function StudentList() {
                   <TableBody>
                     {students.map((student) => {
                       const debt = Number(student.totalDebt);
+                      const scholarship = Number(student.scholarshipPercent ?? 0);
                       const fullName = [student.firstName, student.lastName1, student.lastName2]
                         .filter(Boolean)
                         .join(' ');
@@ -262,6 +264,14 @@ export default function StudentList() {
                               label={STATUS_LABELS[student.status] ?? student.status}
                               color={STATUS_COLORS[student.status] ?? 'default'}
                               size="small"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={scholarship > 0 ? `Becado ${scholarship}%` : 'Sin beca'}
+                              color={scholarship > 0 ? 'info' : 'default'}
+                              size="small"
+                              variant={scholarship > 0 ? 'filled' : 'outlined'}
                             />
                           </TableCell>
                           <TableCell sx={{ color: debt > 0 ? 'error.main' : 'success.main' }}>
@@ -283,7 +293,7 @@ export default function StudentList() {
                     })}
                     {students.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} sx={{ py: 4 }}>
+                        <TableCell colSpan={7} sx={{ py: 4 }}>
                           {debouncedSearch || filterStatus || filterGroupId !== undefined
                             ? 'No se encontraron alumnos con los filtros aplicados'
                             : 'No hay alumnos registrados'}

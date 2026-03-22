@@ -24,6 +24,7 @@ import {
   CircularProgress,
   MenuItem,
   Switch,
+  Checkbox,
   FormControlLabel,
 } from '@mui/material';
 import { Add, Edit, Delete, PlayArrow } from '@mui/icons-material';
@@ -56,6 +57,7 @@ const INITIAL_FORM: RecurringRuleFormData = {
   startMonth: 1,
   endMonth: 12,
   amount: null,
+  applyScholarship: false,
 };
 
 export default function RecurringRulesManagement() {
@@ -66,6 +68,7 @@ export default function RecurringRulesManagement() {
   const [editingRule, setEditingRule] = useState<RecurringPaymentRule | null>(null);
   const [formData, setFormData] = useState<RecurringRuleFormData>(INITIAL_FORM);
   const [isActive, setIsActive] = useState(true);
+  const [applyScholarship, setApplyScholarship] = useState(false);
   const [formError, setFormError] = useState('');
   const [confirmDelete, setConfirmDelete] = useState<RecurringPaymentRule | null>(null);
 
@@ -98,6 +101,7 @@ export default function RecurringRulesManagement() {
     setEditingRule(null);
     setFormData(INITIAL_FORM);
     setIsActive(true);
+    setApplyScholarship(false);
     setFormError('');
     setDialogOpen(true);
   };
@@ -114,6 +118,7 @@ export default function RecurringRulesManagement() {
       amount: rule.amount !== null ? Number(rule.amount) : null,
     });
     setIsActive(rule.isActive);
+    setApplyScholarship(rule.applyScholarship);
     setFormError('');
     setDialogOpen(true);
   };
@@ -131,11 +136,11 @@ export default function RecurringRulesManagement() {
       if (editingRule) {
         await updateMutation.mutateAsync({
           id: editingRule.id,
-          input: { ...formData, isActive },
+          input: { ...formData, applyScholarship, isActive },
         });
         enqueueSnackbar('Regla actualizada', { variant: 'success' });
       } else {
-        await createMutation.mutateAsync(formData);
+        await createMutation.mutateAsync({ ...formData, applyScholarship });
         enqueueSnackbar('Regla creada', { variant: 'success' });
       }
       setDialogOpen(false);
@@ -258,6 +263,7 @@ export default function RecurringRulesManagement() {
                         </TableSortLabel>
                       </TableCell>
                       <TableCell>Monto</TableCell>
+                      <TableCell>Beca</TableCell>
                       <TableCell>
                         <TableSortLabel
                           active={sortBy === 'isActive'}
@@ -286,6 +292,14 @@ export default function RecurringRulesManagement() {
                         </TableCell>
                         <TableCell>
                           <Chip
+                            label={rule.applyScholarship ? 'Sí' : 'No'}
+                            color={rule.applyScholarship ? 'info' : 'default'}
+                            size="small"
+                            variant={rule.applyScholarship ? 'filled' : 'outlined'}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
                             label={rule.isActive ? 'Activa' : 'Inactiva'}
                             color={rule.isActive ? 'success' : 'default'}
                             size="small"
@@ -311,7 +325,7 @@ export default function RecurringRulesManagement() {
                     ))}
                     {rules.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={9} sx={{ py: 4 }}>
+                        <TableCell colSpan={10} sx={{ py: 4 }}>
                           No hay reglas recurrentes configuradas
                         </TableCell>
                       </TableRow>
@@ -425,6 +439,14 @@ export default function RecurringRulesManagement() {
             onValueChange={(v) => setFormData({ ...formData, amount: v ? parseFloat(v) || null : null })}
             margin="normal"
             min={0}
+          />
+
+          <FormControlLabel
+            control={
+              <Checkbox checked={applyScholarship} onChange={(e) => setApplyScholarship(e.target.checked)} />
+            }
+            label="Aplicar beca del alumno al generar pagos"
+            sx={{ mt: 1 }}
           />
 
           {editingRule && (

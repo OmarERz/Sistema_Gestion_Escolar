@@ -48,6 +48,7 @@ export async function create(input: CreateRecurringRuleInput) {
       startMonth: input.startMonth,
       endMonth: input.endMonth,
       amount: input.amount ?? null,
+      applyScholarship: input.applyScholarship ?? false,
       isActive: true,
     },
     include: {
@@ -69,6 +70,7 @@ export async function update(id: number, input: UpdateRecurringRuleInput) {
   if (input.startMonth !== undefined) data.startMonth = input.startMonth;
   if (input.endMonth !== undefined) data.endMonth = input.endMonth;
   if (input.amount !== undefined) data.amount = input.amount ?? null;
+  if (input.applyScholarship !== undefined) data.applyScholarship = input.applyScholarship;
   if (input.isActive !== undefined) data.isActive = input.isActive;
 
   return prisma.recurringPaymentRule.update({
@@ -125,16 +127,15 @@ export async function generatePayments() {
     if (currentDay < rule.generationDay) continue;
 
     const amount = rule.amount ? Number(rule.amount) : Number(rule.paymentConcept.defaultAmount);
-    const finalAmount = calculateFinalAmount(amount, 0, 0);
 
     // Determine year for dueDate
     const year = now.getFullYear();
     const dueDate = new Date(year, currentMonth - 1, rule.dueDay);
 
-    // Get all active students in this cycle
+    // Get all active students in this cycle (include scholarshipPercent for scholarship rules)
     const students = await prisma.student.findMany({
       where: { schoolCycleId: rule.schoolCycleId, status: 'active' },
-      select: { id: true },
+      select: { id: true, scholarshipPercent: true },
     });
 
     await prisma.$transaction(async (tx) => {
@@ -153,6 +154,12 @@ export async function generatePayments() {
           continue;
         }
 
+        // Apply scholarship if rule has applyScholarship and student has scholarship
+        const studentSchl = Number(student.scholarshipPercent);
+        const applyScholarship = rule.applyScholarship && studentSchl > 0;
+        const schlPct = applyScholarship ? studentSchl : 0;
+        const finalAmount = calculateFinalAmount(amount, 0, 0, schlPct);
+
         await tx.payment.create({
           data: {
             studentId: student.id,
@@ -162,6 +169,8 @@ export async function generatePayments() {
             baseAmount: amount,
             discountPercent: 0,
             surchargePercent: 0,
+            hasScholarship: !!applyScholarship,
+            scholarshipPercent: schlPct,
             finalAmount,
             amountPaid: 0,
             status: 'pending',

@@ -8,6 +8,7 @@ export const createPaymentSchema = z.object({
   baseAmount: z.number().positive('Base amount must be positive'),
   discountPercent: z.number().min(0).max(100).default(0),
   surchargePercent: z.number().min(0).max(100).default(0),
+  hasScholarship: z.boolean().default(false).optional(),
   dueDate: z.string().datetime({ offset: true }).or(z.string().date()).nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
   // Optional first transaction to create alongside the payment
@@ -24,6 +25,7 @@ export const updatePaymentSchema = z.object({
   baseAmount: z.number().positive('Base amount must be positive').optional(),
   discountPercent: z.number().min(0).max(100).optional(),
   surchargePercent: z.number().min(0).max(100).optional(),
+  hasScholarship: z.boolean().optional(),
   dueDate: z.string().datetime({ offset: true }).or(z.string().date()).nullable().optional(),
   notes: z.string().max(1000).nullable().optional(),
   status: z.enum(['pending', 'paid', 'partial', 'overdue', 'cancelled']).optional(),

@@ -471,6 +471,12 @@ export default function PaymentHistory() {
                   <Typography variant="body2" color="text.secondary">Recargo</Typography>
                   <Typography variant="body1">{Number(detailPayment.surchargePercent)}%</Typography>
                 </Box>
+                {detailPayment.hasScholarship && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">Beca</Typography>
+                    <Typography variant="body1">{Number(detailPayment.scholarshipPercent)}%</Typography>
+                  </Box>
+                )}
                 <Box>
                   <Typography variant="body2" color="text.secondary">Monto Final</Typography>
                   <Typography variant="body1" fontWeight={600}>{formatCurrency(detailPayment.finalAmount)}</Typography>

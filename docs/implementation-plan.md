@@ -473,6 +473,14 @@ Divided into 8 sub-modules (10A–10H), implemented sequentially.
 
 **Dependencies:** Step 10 (withdrawal snapshots debt)
 
+### Scholarship System (Becas) ✅
+- **Database:** `scholarship_percent` on students, `has_scholarship` + `scholarship_percent` on payments, `apply_scholarship` on recurring rules
+- **Formula:** `finalAmount = base × (1 - discount/100) × (1 - scholarship/100) × (1 + surcharge/100)`
+- **Manual application:** Checkbox in PaymentForm when student has scholarship > 0
+- **Automatic via rules:** Recurring rules with `applyScholarship: true` apply the student's scholarship when generating payments
+- **No retroactive changes:** Changing a student's scholarship does not affect existing payments
+- **UI:** Badge "Becado X%" in student list and detail; scholarship field in create/edit student; scholarship info in payment detail dialogs
+
 ### Step 13: Business Logic Tests (Vitest)
 - Install `vitest` as backend devDependency
 - Add `test` and `test:watch` scripts to `backend/package.json`

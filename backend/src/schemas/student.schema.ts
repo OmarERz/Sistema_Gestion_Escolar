@@ -58,6 +58,7 @@ export const createStudentSchema = z.object({
   groupId: z.number().int().positive().optional().nullable(),
   schoolCycleId: z.number().int().positive('School cycle is required'),
   enrollmentDate: z.string().min(1, 'Enrollment date is required'),
+  scholarshipPercent: z.number().min(0).max(100).default(0).optional(),
   notes: emptyToNull,
   guardians: z.array(guardianInputSchema)
     .min(1, 'At least one guardian is required')
@@ -76,6 +77,7 @@ export const updateStudentSchema = z.object({
   schoolCycleId: z.number().int().positive().optional(),
   enrollmentDate: z.string().optional(),
   status: z.enum(['active', 'inactive', 'withdrawn']).optional(),
+  scholarshipPercent: z.number().min(0).max(100).optional(),
   notes: emptyToNull,
 });
 

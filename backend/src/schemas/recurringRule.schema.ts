@@ -8,6 +8,7 @@ export const createRecurringRuleSchema = z.object({
   startMonth: z.number().int().min(1).max(12),
   endMonth: z.number().int().min(1).max(12),
   amount: z.number().positive('Amount must be positive').nullable().optional(),
+  applyScholarship: z.boolean().default(false).optional(),
 });
 
 export const updateRecurringRuleSchema = z.object({
@@ -16,6 +17,7 @@ export const updateRecurringRuleSchema = z.object({
   startMonth: z.number().int().min(1).max(12).optional(),
   endMonth: z.number().int().min(1).max(12).optional(),
   amount: z.number().positive('Amount must be positive').nullable().optional(),
+  applyScholarship: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 

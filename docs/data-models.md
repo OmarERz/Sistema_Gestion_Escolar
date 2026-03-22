@@ -302,6 +302,7 @@ Core entity representing an enrolled student. Contains personal data, current gr
 | `enrollment_date` | DATE | No | — | Date of enrollment |
 | `status` | ENUM | No | `'active'` | Student status (see enum below) |
 | `total_debt` | DECIMAL(10,2) | No | `0.00` | Cached total debt amount |
+| `scholarship_percent` | DECIMAL(5,2) | No | `0.00` | Scholarship discount percentage (0-100) |
 | `notes` | TEXT | Yes | `NULL` | Additional notes |
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
 | `updated_at` | DATETIME | No | Auto-update | Last modification timestamp |
@@ -481,6 +482,7 @@ Configurable rules that determine when payment records are automatically generat
 | `start_month` | INT | No | — | First month the rule applies (1-12) |
 | `end_month` | INT | No | — | Last month the rule applies (1-12) |
 | `amount` | DECIMAL(10,2) | Yes | `NULL` | Override amount (NULL = use concept default) |
+| `apply_scholarship` | BOOLEAN | No | `false` | If true, generated payments inherit the student's scholarship |
 | `is_active` | BOOLEAN | No | `true` | Whether the rule is active |
 | `created_at` | DATETIME | No | `NOW()` | Record creation timestamp |
 | `updated_at` | DATETIME | No | Auto-update | Last modification timestamp |
@@ -511,7 +513,9 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 | `base_amount` | DECIMAL(10,2) | No | — | Original amount before adjustments |
 | `discount_percent` | DECIMAL(5,2) | No | `0.00` | Discount percentage applied |
 | `surcharge_percent` | DECIMAL(5,2) | No | `0.00` | Surcharge/late fee percentage |
-| `final_amount` | DECIMAL(10,2) | No | — | Calculated: `base × (1 - discount%) × (1 + surcharge%)` |
+| `has_scholarship` | BOOLEAN | No | `false` | Whether scholarship was applied to this payment |
+| `scholarship_percent` | DECIMAL(5,2) | No | `0.00` | Scholarship percentage applied at creation time |
+| `final_amount` | DECIMAL(10,2) | No | — | Calculated: `base × (1 - discount%) × (1 - scholarship%) × (1 + surcharge%)` |
 | `amount_paid` | DECIMAL(10,2) | No | `0.00` | Cached sum of all transaction amounts |
 | `status` | ENUM | No | `'pending'` | Payment status (see enum below) |
 | `due_date` | DATE | Yes | `NULL` | Payment deadline date |
@@ -524,7 +528,9 @@ Individual payment records for each student. Tracks amounts, discounts, surcharg
 - Foreign keys to `students`, `payment_concepts`, `school_cycles`
 
 **Business Rules:**
-- `final_amount = base_amount × (1 - discount_percent/100) × (1 + surcharge_percent/100)` (multiplicative formula)
+- `final_amount = base_amount × (1 - discount_percent/100) × (1 - scholarship_percent/100) × (1 + surcharge_percent/100)` (multiplicative formula)
+- Scholarship is applied manually per payment or automatically via recurring rules with `apply_scholarship = true`
+- `scholarship_percent` on the payment is a snapshot of the student's scholarship at creation time; changing the student's scholarship does not retroactively affect existing payments
 - `amount_paid` is a cached value recalculated as `SUM(transaction.amount)` whenever transactions change
 - Status is auto-determined: `paid` (amountPaid >= finalAmount), `overdue` (dueDate < today and not fully paid), `partial` (amountPaid > 0 and < finalAmount), `pending` (default). `cancelled` is set only manually.
 - When `status` changes, `student.total_debt` must be recalculated

@@ -118,10 +118,18 @@ export async function create(input: CreatePaymentInput) {
     if (!method.isActive) throw new AppError(400, 'Payment method is inactive', 'METHOD_INACTIVE');
   }
 
+  // Resolve scholarship: if hasScholarship, use student's scholarshipPercent
+  let scholarshipPercent = 0;
+  const hasScholarship = input.hasScholarship ?? false;
+  if (hasScholarship) {
+    scholarshipPercent = Number(student!.scholarshipPercent);
+  }
+
   const finalAmount = calculateFinalAmount(
     input.baseAmount,
     input.discountPercent ?? 0,
     input.surchargePercent ?? 0,
+    scholarshipPercent,
   );
 
   // Validate transaction amount does not exceed finalAmount
@@ -139,6 +147,8 @@ export async function create(input: CreatePaymentInput) {
         baseAmount: input.baseAmount,
         discountPercent: input.discountPercent ?? 0,
         surchargePercent: input.surchargePercent ?? 0,
+        hasScholarship,
+        scholarshipPercent,
         finalAmount,
         amountPaid: 0,
         status: 'pending',
@@ -189,11 +199,24 @@ export async function update(id: number, input: UpdatePaymentInput) {
     const discountPercent = input.discountPercent ?? Number(existing.discountPercent);
     const surchargePercent = input.surchargePercent ?? Number(existing.surchargePercent);
 
-    if (input.baseAmount !== undefined || input.discountPercent !== undefined || input.surchargePercent !== undefined) {
+    // Resolve scholarship for recalculation
+    let hasScholarship = existing.hasScholarship;
+    let scholarshipPercent = Number(existing.scholarshipPercent);
+    if (input.hasScholarship !== undefined) {
+      hasScholarship = input.hasScholarship;
+      // When toggling off, use 0; when toggling on, use the stored value from the payment
+      scholarshipPercent = input.hasScholarship ? Number(existing.scholarshipPercent) : 0;
+      data.hasScholarship = hasScholarship;
+    }
+
+    const needsRecalc = input.baseAmount !== undefined || input.discountPercent !== undefined
+      || input.surchargePercent !== undefined || input.hasScholarship !== undefined;
+    if (needsRecalc) {
       data.baseAmount = baseAmount;
       data.discountPercent = discountPercent;
       data.surchargePercent = surchargePercent;
-      data.finalAmount = calculateFinalAmount(baseAmount, discountPercent, surchargePercent);
+      const effectiveScholarship = hasScholarship ? scholarshipPercent : 0;
+      data.finalAmount = calculateFinalAmount(baseAmount, discountPercent, surchargePercent, effectiveScholarship);
     }
 
     if (input.dueDate !== undefined) data.dueDate = input.dueDate ? new Date(input.dueDate) : null;
@@ -334,6 +357,8 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
     where: { type: 'mandatory', isActive: true },
   });
 
+  const studentScholarship = Number(student!.scholarshipPercent);
+
   let generated = 0;
   let skipped = 0;
 
@@ -386,7 +411,10 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
             ? cycle.startDate.getFullYear()
             : cycle.endDate.getFullYear();
 
-          const finalAmount = calculateFinalAmount(amount, 0, 0);
+          // Apply scholarship if rule has applyScholarship and student has scholarship
+          const applyScholarship = rule?.applyScholarship && studentScholarship > 0;
+          const schlPct = applyScholarship ? studentScholarship : 0;
+          const finalAmount = calculateFinalAmount(amount, 0, 0, schlPct);
           const dueDate = new Date(year, month - 1, dueDay);
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -400,6 +428,8 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
               baseAmount: amount,
               discountPercent: 0,
               surchargePercent: 0,
+              hasScholarship: !!applyScholarship,
+              scholarshipPercent: schlPct,
               finalAmount,
               amountPaid: 0,
               status: dueDate < today ? 'overdue' : 'pending',
@@ -425,7 +455,14 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
         }
 
         const amount = Number(concept.defaultAmount);
-        const finalAmount = calculateFinalAmount(amount, 0, 0);
+
+        // For non-monthly, check if any rule exists with applyScholarship
+        const nonMonthlyRule = await tx.recurringPaymentRule.findFirst({
+          where: { paymentConceptId: concept.id, schoolCycleId, isActive: true },
+        });
+        const applySchl = nonMonthlyRule?.applyScholarship && studentScholarship > 0;
+        const schlPctNM = applySchl ? studentScholarship : 0;
+        const finalAmount = calculateFinalAmount(amount, 0, 0, schlPctNM);
 
         await tx.payment.create({
           data: {
@@ -436,6 +473,8 @@ export async function bulkGenerateMandatory(studentId: number, schoolCycleId: nu
             baseAmount: amount,
             discountPercent: 0,
             surchargePercent: 0,
+            hasScholarship: !!applySchl,
+            scholarshipPercent: schlPctNM,
             finalAmount,
             amountPaid: 0,
             status: 'pending',
