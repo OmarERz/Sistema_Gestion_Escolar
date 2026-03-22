@@ -234,30 +234,41 @@ export async function reenroll(withdrawalId: number, input: ReenrollInput) {
     }
 
     // Create academic history entries
-    // 1. Withdrawal record (from the old cycle/group)
-    const existingWithdrawnEntry = await tx.studentAcademicHistory.findFirst({
+    // 1. Withdrawal record (from the old cycle/group) — upsert to handle existing entry for this cycle
+    await tx.studentAcademicHistory.upsert({
       where: {
+        unique_student_per_cycle: {
+          studentId: withdrawal.studentId,
+          schoolCycleId: withdrawal.schoolCycleId,
+        },
+      },
+      update: {
+        status: 'withdrawn',
+        notes: `Baja: ${withdrawal.reason}`,
+      },
+      create: {
         studentId: withdrawal.studentId,
         schoolCycleId: withdrawal.schoolCycleId,
+        groupId: withdrawal.student.groupId ?? input.groupId,
         status: 'withdrawn',
+        notes: `Baja: ${withdrawal.reason}`,
       },
     });
 
-    if (!existingWithdrawnEntry) {
-      await tx.studentAcademicHistory.create({
-        data: {
+    // 2. Re-enrollment record (upsert to avoid duplicate if one already exists for this cycle)
+    await tx.studentAcademicHistory.upsert({
+      where: {
+        unique_student_per_cycle: {
           studentId: withdrawal.studentId,
-          schoolCycleId: withdrawal.schoolCycleId,
-          groupId: withdrawal.student.groupId ?? input.groupId,
-          status: 'withdrawn',
-          notes: `Baja: ${withdrawal.reason}`,
+          schoolCycleId: input.schoolCycleId,
         },
-      });
-    }
-
-    // 2. Re-enrollment record
-    await tx.studentAcademicHistory.create({
-      data: {
+      },
+      update: {
+        groupId: input.groupId,
+        status: 'reenrolled',
+        notes: 'Reinscripción',
+      },
+      create: {
         studentId: withdrawal.studentId,
         schoolCycleId: input.schoolCycleId,
         groupId: input.groupId,
