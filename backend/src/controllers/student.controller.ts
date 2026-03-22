@@ -68,6 +68,7 @@ export async function getPayments(req: Request<{ id: string }>, res: Response) {
   const filters = {
     studentId,
     status: req.query.status as string | undefined,
+    schoolCycleId: req.query.schoolCycleId ? parseInt(req.query.schoolCycleId as string, 10) : undefined,
   };
 
   const { data, total } = await paymentService.list(pagination, filters, sort);

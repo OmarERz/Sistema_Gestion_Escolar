@@ -210,12 +210,13 @@ export default function StudentDetail() {
   const [paymentEditOpen, setPaymentEditOpen] = useState(false);
   const [paymentEditForm, setPaymentEditForm] = useState<UpdatePaymentFormData>({});
   const [paymentEditError, setPaymentEditError] = useState('');
+  const [paymentCycleFilter, setPaymentCycleFilter] = useState<string>('');
   const [paymentConfirmAction, setPaymentConfirmAction] = useState<{
     type: 'delete' | 'cancel' | 'removeTransaction';
     id: number;
     label: string;
   } | null>(null);
-  const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20, paymentSortBy, paymentSortDir);
+  const { data: studentPaymentsResponse } = useStudentPayments(studentId, paymentPage + 1, 20, paymentSortBy, paymentSortDir, undefined, paymentCycleFilter ? Number(paymentCycleFilter) : undefined);
   const { data: debtBreakdownResponse } = useDebtBreakdown(studentId);
   const bulkGenerateMutation = useBulkGenerate();
   const resetPaymentsMutation = useResetStudentPayments();
@@ -740,6 +741,23 @@ export default function StudentDetail() {
           </CardContent>
         </Card>
 
+        {/* Cycle filter */}
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            select
+            label="Ciclo Escolar"
+            value={paymentCycleFilter}
+            onChange={(e) => { setPaymentCycleFilter(e.target.value); setPaymentPage(0); }}
+            sx={{ minWidth: 180 }}
+          >
+            <MenuItem value="">Todos</MenuItem>
+            {cycles.map((c) => (
+              <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+            ))}
+          </TextField>
+        </Box>
+
         {/* Payments table */}
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 0 }}>
@@ -899,6 +917,10 @@ export default function StudentDetail() {
                     <Box>
                       <Typography variant="body2" color="text.secondary">Concepto</Typography>
                       <Typography>{p.paymentConcept.name}</Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">Ciclo Escolar</Typography>
+                      <Typography>{p.schoolCycle?.name ?? '—'}</Typography>
                     </Box>
                     <Box>
                       <Typography variant="body2" color="text.secondary">Mes</Typography>

@@ -96,9 +96,10 @@ export async function getStudentPayments(
   sortBy?: string,
   sortDir?: string,
   status?: string,
+  schoolCycleId?: number,
 ): Promise<PaginatedResponse<Payment>> {
   const { data } = await apiClient.get<PaginatedResponse<Payment>>(`/students/${studentId}/payments`, {
-    params: { page, limit, sortBy, sortDir, status },
+    params: { page, limit, sortBy, sortDir, status, schoolCycleId },
   });
   return data;
 }

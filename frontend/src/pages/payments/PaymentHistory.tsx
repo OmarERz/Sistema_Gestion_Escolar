@@ -437,6 +437,10 @@ export default function PaymentHistory() {
                   <Typography variant="body1">{detailPayment.paymentConcept.name}</Typography>
                 </Box>
                 <Box>
+                  <Typography variant="body2" color="text.secondary">Ciclo Escolar</Typography>
+                  <Typography variant="body1">{detailPayment.schoolCycle?.name ?? '—'}</Typography>
+                </Box>
+                <Box>
                   <Typography variant="body2" color="text.secondary">Mes</Typography>
                   <Typography variant="body1">{detailPayment.appliesToMonth ? MONTH_NAMES[detailPayment.appliesToMonth] : '—'}</Typography>
                 </Box>

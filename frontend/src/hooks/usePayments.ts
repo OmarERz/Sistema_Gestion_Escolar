@@ -40,10 +40,11 @@ export function useStudentPayments(
   sortBy?: string,
   sortDir?: string,
   status?: string,
+  schoolCycleId?: number,
 ) {
   return useQuery({
-    queryKey: [STUDENT_PAYMENTS_KEY, studentId, page, limit, sortBy, sortDir, status],
-    queryFn: () => paymentsApi.getStudentPayments(studentId!, page, limit, sortBy, sortDir, status),
+    queryKey: [STUDENT_PAYMENTS_KEY, studentId, page, limit, sortBy, sortDir, status, schoolCycleId],
+    queryFn: () => paymentsApi.getStudentPayments(studentId!, page, limit, sortBy, sortDir, status, schoolCycleId),
     enabled: studentId !== null,
   });
 }
