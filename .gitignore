@@ -40,3 +40,9 @@ docs/*.docx
 
 # Coverage
 coverage/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite generated declarations
+frontend/vite.config.d.ts
